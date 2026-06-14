@@ -58,14 +58,22 @@ def run_image_encoder(sam, batch, device):
 
 
 def decode_masks(sam, feats, boxes, device):
-    sparse, dense = sam.prompt_encoder(points=None, boxes=boxes.to(device), masks=None)
-    low_res, _ = sam.mask_decoder(
-        image_embeddings=feats,
-        image_pe=sam.prompt_encoder.get_dense_pe(),
-        sparse_prompt_embeddings=sparse,
-        dense_prompt_embeddings=dense,
-        multimask_output=False,
-    )
+    """SAM mask_decoder TIDAK bisa batch gambar (internal repeat_interleave by
+    num_prompts). Jadi decode per-gambar (decoder murah), encoder tetap batch."""
+    boxes = boxes.to(device)
+    image_pe = sam.prompt_encoder.get_dense_pe()
+    outs = []
+    for i in range(feats.shape[0]):
+        sparse, dense = sam.prompt_encoder(points=None, boxes=boxes[i], masks=None)  # box[i]: 1x4
+        low_res, _ = sam.mask_decoder(
+            image_embeddings=feats[i : i + 1],
+            image_pe=image_pe,
+            sparse_prompt_embeddings=sparse,
+            dense_prompt_embeddings=dense,
+            multimask_output=False,
+        )
+        outs.append(low_res)
+    low_res = torch.cat(outs, dim=0)  # B x 1 x 256 x 256
     # upsample low-res (256) -> 1024
     return F.interpolate(low_res, (1024, 1024), mode="bilinear", align_corners=False)
 
