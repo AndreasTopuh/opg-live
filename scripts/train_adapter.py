@@ -93,6 +93,7 @@ def train(args):
     )
     os.makedirs(f"{args.drive}/checkpoints", exist_ok=True)
     best = 0.0
+    scaler = torch.amp.GradScaler("cuda")  # mixed precision -> hemat VRAM + cepat
 
     for ep in range(args.epochs):
         sam.train()
@@ -104,14 +105,16 @@ def train(args):
             gts = torch.stack([s["gt_mask"] for s in samples])[:, None].to(device)
             batch = {"image_1024": torch.stack([s["image_1024"] for s in samples])}
 
-            feats = run_image_encoder(sam, batch, device)
-            logits = decode_masks(sam, feats, boxes, device)
-            loss = dice_bce_loss(logits, gts) / args.accum
-            loss.backward()
+            with torch.amp.autocast("cuda", dtype=torch.float16):
+                feats = run_image_encoder(sam, batch, device)
+                logits = decode_masks(sam, feats, boxes, device)
+                loss = dice_bce_loss(logits, gts) / args.accum
+            scaler.scale(loss).backward()
             run_loss += loss.item() * args.accum
             steps += 1
             if (bi + 1) % args.accum == 0:
-                opt.step()
+                scaler.step(opt)
+                scaler.update()
                 opt.zero_grad()
             if bi % 50 == 0:
                 print(f"  ep{ep} step{bi}/{len(tr)} loss {run_loss/steps:.4f}")
@@ -119,14 +122,14 @@ def train(args):
         # ---- validasi: Dice global + per-kelas ----
         sam.eval()
         per_cls = defaultdict(list)
-        with torch.no_grad():
+        with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.float16):
             for samples in va:
                 boxes = torch.stack([s["box"] for s in samples])[:, None, :]
                 gts = torch.stack([s["gt_mask"] for s in samples])[:, None].to(device)
                 batch = {"image_1024": torch.stack([s["image_1024"] for s in samples])}
                 feats = run_image_encoder(sam, batch, device)
                 logits = decode_masks(sam, feats, boxes, device)
-                ds = dice_score(logits, gts).cpu().numpy()
+                ds = dice_score(logits.float(), gts).cpu().numpy()
                 for s, d in zip(samples, ds):
                     per_cls[s["cls"]].append(d)
         mdice = np.mean([d for v in per_cls.values() for d in v])
