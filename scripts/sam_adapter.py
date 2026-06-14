@@ -1,0 +1,103 @@
+"""
+Medical SAM Adapter (Wu et al., 2025, Medical Image Analysis) — lightweight.
+
+Strategi: SAM ViT-H di-FREEZE. Sisipkan modul Adapter kecil (bottleneck
+down->act->up) di tiap transformer block image encoder. Hanya adapter +
+mask decoder yang trainable (~2-3% params). Tidak ada full fine-tune, tidak SAM 2.
+
+CATATAN: implementasi ini mengikuti pola adapter MSA (dua adapter per block:
+satu setelah attention, satu paralel dengan MLP). Validasi Dice di val set
+sebelum dipakai produksi; kalau perlu fidelity persis, swap dengan repo resmi
+Medical-SAM-Adapter (MSA). Adapter di-init mendekati identitas (up=0) supaya
+training mulai dari perilaku SAM asli.
+"""
+import types
+
+import torch
+import torch.nn as nn
+from segment_anything.modeling.image_encoder import (
+    window_partition,
+    window_unpartition,
+)
+
+
+class Adapter(nn.Module):
+    """Bottleneck adapter: x + up(act(down(x))). Init up=0 -> identity di awal."""
+
+    def __init__(self, dim, mlp_ratio=0.25, act=nn.GELU, skip=True):
+        super().__init__()
+        hidden = max(1, int(dim * mlp_ratio))
+        self.skip = skip
+        self.down = nn.Linear(dim, hidden)
+        self.act = act()
+        self.up = nn.Linear(hidden, dim)
+        nn.init.zeros_(self.up.weight)
+        nn.init.zeros_(self.up.bias)
+
+    def forward(self, x):
+        h = self.up(self.act(self.down(x)))
+        return x + h if self.skip else h
+
+
+def _patched_block_forward(self, x):
+    """Forward ViT Block + adapter. Mirror segment_anything Block.forward."""
+    shortcut = x
+    x = self.norm1(x)
+    if self.window_size > 0:
+        H, W = x.shape[1], x.shape[2]
+        x, pad_hw = window_partition(x, self.window_size)
+    x = self.attn(x)
+    if self.window_size > 0:
+        x = window_unpartition(x, self.window_size, pad_hw, (H, W))
+    x = self.adapter_attn(x)                     # adapter setelah attention
+    x = shortcut + x
+    xn = self.norm2(x)
+    x = x + self.mlp(xn) + self.scale * self.adapter_mlp(xn)  # adapter paralel MLP
+    return x
+
+
+def inject_adapters(sam, mlp_ratio=0.25, scale=0.5):
+    """Freeze SAM, tambahkan adapter ke tiap block image encoder.
+    mask decoder dibiarkan trainable. Return sam (in-place)."""
+    # 1. Freeze semua
+    for p in sam.parameters():
+        p.requires_grad = False
+
+    # 2. Sisipkan adapter di tiap block + patch forward
+    for blk in sam.image_encoder.blocks:
+        dim = blk.norm1.weight.shape[0]
+        blk.adapter_attn = Adapter(dim, mlp_ratio)
+        blk.adapter_mlp = Adapter(dim, mlp_ratio, skip=False)
+        blk.scale = scale
+        blk.forward = types.MethodType(_patched_block_forward, blk)
+
+    # 3. Adapter trainable
+    for blk in sam.image_encoder.blocks:
+        for p in blk.adapter_attn.parameters():
+            p.requires_grad = True
+        for p in blk.adapter_mlp.parameters():
+            p.requires_grad = True
+
+    # 4. Mask decoder trainable (prompt encoder tetap frozen)
+    for p in sam.mask_decoder.parameters():
+        p.requires_grad = True
+
+    return sam
+
+
+def trainable_report(sam):
+    total = sum(p.numel() for p in sam.parameters())
+    train = sum(p.numel() for p in sam.parameters() if p.requires_grad)
+    print(f"Trainable: {train/1e6:.2f}M / {total/1e6:.0f}M  ({100*train/total:.2f}%)")
+    return train, total
+
+
+def adapter_state_dict(sam):
+    """Hanya bobot yang trainable (adapter + mask decoder) -> checkpoint kecil."""
+    return {k: v.cpu() for k, v in sam.state_dict().items()
+            if "adapter_" in k or "mask_decoder" in k}
+
+
+def load_adapter_state(sam, state):
+    sam.load_state_dict(state, strict=False)
+    return sam
