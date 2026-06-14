@@ -1,0 +1,66 @@
+"""
+Overview renderer (Phase C / demo): SEMUA deteksi YOLO di 1 OPG sekaligus,
+label penyakit + confidence, WARNA beda per kelas penyakit.
+
+Beda dari make_artifacts.py:
+  - make_artifacts = SATU lesi per gambar (untuk eksperimen faithfulness)
+  - make_overview  = SEMUA lesi per gambar (untuk tampilan ringkasan dokter)
+
+Output: outputs/overview/{file}.png
+"""
+import argparse
+import glob
+import os
+
+import cv2
+from ultralytics import YOLO
+
+from dentex_dataset import CLASS_NAMES
+
+# Warna per kelas (BGR untuk OpenCV)
+COLORS = {
+    0: (255, 0, 0),     # Impacted        - biru
+    1: (255, 255, 0),   # Caries          - cyan
+    2: (0, 255, 255),   # Periapical      - kuning
+    3: (0, 255, 0),     # Deep Caries     - hijau
+}
+
+
+def run(args):
+    model = YOLO(args.yolo_ckpt)
+    out_dir = f"{args.drive}/outputs/overview"
+    os.makedirs(out_dir, exist_ok=True)
+
+    imgs = sorted(glob.glob(f"{args.images_dir}/*.png")) + sorted(glob.glob(f"{args.images_dir}/*.jpg"))
+    if args.limit:
+        imgs = imgs[: args.limit]
+
+    for p in imgs:
+        img = cv2.imread(p)
+        res = model.predict(p, imgsz=args.imgsz, conf=args.conf, verbose=False)[0]
+        for b in res.boxes:
+            cls = int(b.cls)
+            conf = float(b.conf)
+            x0, y0, x1, y1 = [int(v) for v in b.xyxy[0].tolist()]
+            color = COLORS.get(cls, (0, 255, 0))
+            cv2.rectangle(img, (x0, y0), (x1, y1), color, 3)
+            label = f"{CLASS_NAMES[cls]} {conf:.2f}"
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+            cv2.rectangle(img, (x0, y0 - th - 8), (x0 + tw + 4, y0), color, -1)
+            cv2.putText(img, label, (x0 + 2, y0 - 6),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+        cv2.imwrite(f"{out_dir}/{os.path.basename(p)}", img)
+
+    print(f"✅ {len(imgs)} overview -> {out_dir}")
+    print("   Warna: Impacted=biru, Caries=cyan, Periapical=kuning, Deep Caries=hijau")
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--drive", default="/content/drive/MyDrive/opg-live")
+    ap.add_argument("--yolo_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/yolov8_dentex.pt")
+    ap.add_argument("--images_dir", default="/content/yolo/images/val")
+    ap.add_argument("--conf", type=float, default=0.3)
+    ap.add_argument("--imgsz", type=int, default=1024)
+    ap.add_argument("--limit", type=int, default=0)
+    run(ap.parse_args())
