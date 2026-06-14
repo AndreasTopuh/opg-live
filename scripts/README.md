@@ -13,10 +13,10 @@ Semua logika pipeline sebagai `.py` (versi-controlled, di-`git push`). Notebook 
 
 > **Stage 1 = YOLOv8** (Plan B resmi roadmap; weights pretrained HierarchicalDet tidak dirilis publik). Selaras dengan supervisor Veerabhadrappa & Vengusamy (2025) yang memakai YOLOv7 di panoramic radiograph — di sini diperbarui ke YOLOv8. Lihat `notebooks/03_stage1_yolo.ipynb`.
 | `extract_chunks.py` | 3-prep | local | ⏳ | pdfplumber: PDF guideline → ~30 chunk (lalu manual review) |
-| `embed_kb.py` | 3-prep | **Colab GPU** | ⏳ | BGE-M3 embed chunks → `kb_embeddings.npy` |
-| `retriever.py` | 3 | local | ⏳ | cosine similarity (NumPy) top-k chunk |
-| `prompt_builder.py` | 3 | local | ⏳ | susun prompt 3-arm (bbox/mask/hybrid) + artifact |
-| `llm_gpt.py` | 3 | local | ⏳ | GPT-4o via **OpenRouter** (`base_url`, model `openai/gpt-4o`) |
-| `validator.py` | 3 | local | ⏳ | regex cek setiap sitasi output ada di KB |
-| `ablation_grounding_granularity.py` | D | **Colab GPU** | ⏳ | 3-arm full batch → HR/GS/CTC |
-| `analyze_user_study.py` | D | local | ⏳ | Friedman + Wilcoxon + Bonferroni + bootstrap CI |
+| `embed_kb.py` | 3-prep | Colab | ✅ ada | BGE-M3 embed ~28 chunk → `kb_embeddings.npy` + `kb_meta.json` |
+| `retriever.py` | 3 | local/Colab | ✅ ada | cosine similarity (NumPy) top-k chunk, no FAISS |
+| `prompt_builder.py` | 3 | local | ✅ ada | prompt 3-arm (referent bbox/mask/hybrid) + skema L-F-V JSON |
+| `llm_gpt.py` | 3 | local | ✅ ada | GPT-4o vision via **OpenRouter** (`base_url`, `openai/gpt-4o`), JSON out |
+| `metrics.py` | 3 | local | ✅ ada | HR (trigram-cite), GS (mask_id+citation), CTC (FDI/adjacency proxy) |
+| `run_stage3.py` | 3 | local/Colab | ✅ ada | loop deteksi×3 arm → RAG → GPT-4o → metrik → `results.jsonl` (`--limit` utk tes) |
+| `analyze_results.py` | D | local | ✅ ada | mean+bootstrap CI per arm, Friedman+Wilcoxon+Bonferroni, per-kelas H2-H5 |

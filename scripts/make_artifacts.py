@@ -61,13 +61,18 @@ def iou_xyxy(a, b):
 
 
 def build_gt_index(disease_json):
-    """file_name -> list of (bbox_xyxy, cls). Untuk matching evaluasi."""
+    """file_name -> list of (bbox_xyxy, cls3, fdi). Untuk matching evaluasi + FDI target."""
     d = json.load(open(disease_json))
     id2file = {im["id"]: im["file_name"] for im in d["images"]}
+    cat1 = {c["id"]: str(c["name"]) for c in d.get("categories_1", [])}  # kuadran
+    cat2 = {c["id"]: str(c["name"]) for c in d.get("categories_2", [])}  # nomor gigi
     by_file = defaultdict(list)
     for a in d["annotations"]:
         x, y, w, h = a["bbox"]
-        by_file[id2file[a["image_id"]]].append(([x, y, x + w, y + h], a["category_id_3"]))
+        q = cat1.get(a.get("category_id_1"), "")
+        t = cat2.get(a.get("category_id_2"), "")
+        fdi = f"{q}{t}" if q and t else None       # FDI dua-digit, mis. "36"
+        by_file[id2file[a["image_id"]]].append(([x, y, x + w, y + h], a["category_id_3"], fdi))
     return by_file
 
 
@@ -183,13 +188,14 @@ def run(args):
             for arm, im in arts.items():
                 cv2.imwrite(f"{out_dir}/{arm}/{dct['det_id']}.png", im)
 
-            # match ke GT (IoU>=0.5) -> tahu diagnosis Stage 1 benar/tidak
-            gt_cls, gt_iou = None, 0.0
-            for gb, gc in gt_idx.get(dct["img_file"], []):
+            # match ke GT (IoU>=0.5) -> diagnosis Stage 1 benar/tidak + FDI target
+            gt_cls, gt_fdi, gt_iou = None, None, 0.0
+            for gb, gc, gf in gt_idx.get(dct["img_file"], []):
                 i = iou_xyxy(dct["bbox_xyxy"], gb)
                 if i > gt_iou:
-                    gt_iou, gt_cls = i, gc
+                    gt_iou, gt_cls, gt_fdi = i, gc, gf
             matched = gt_cls if gt_iou >= 0.5 else None
+            target_fdi = gt_fdi if gt_iou >= 0.5 else None
 
             manifest.append({
                 "det_id": dct["det_id"],
@@ -201,6 +207,7 @@ def run(args):
                 "mask_area_px": int(mask.sum()),
                 "sam_score": round(float(scores[0]), 4),
                 "matched_gt_cls": matched,
+                "target_fdi": target_fdi,
                 "gt_iou": round(gt_iou, 3),
                 "correct": (matched == dct["pred_cls"]) if matched is not None else False,
                 "artifacts": {arm: f"{arm}/{dct['det_id']}.png" for arm in arts},
