@@ -1,0 +1,27 @@
+# ===== Core (Colab GPU) =====
+torch>=2.1
+torchvision
+segment-anything            # SAM v1 ViT-H (Stage 2)
+# detectron2 — install dari source di Colab (lihat 00_setup.ipynb)
+
+# ===== Stage 3: LLM + RAG =====
+openai>=1.30                # GPT-4o
+sentence-transformers       # BGE-M3 embeddings
+numpy                       # cosine similarity KB (no FAISS)
+pdfplumber                  # extract chunks dari PDF guideline
+
+# ===== Data =====
+pycocotools                 # DENTEX COCO annotations
+opencv-python-headless
+Pillow
+scipy
+
+# ===== Stats (Phase D) =====
+scikit-learn
+statsmodels                 # Friedman, Wilcoxon, Bonferroni
+matplotlib
+
+# ===== Dev (laptop) =====
+black
+ruff
+jupyter
