@@ -52,12 +52,9 @@ def dice_score(logits, gt, thr=0.5):
 
 
 def run_image_encoder(sam, batch, device):
-    """SAM image encoder (adapter di dalam -> dapat gradient). Output feats."""
-    img = batch["image_1024"].to(device).float()
-    img = (img - sam.pixel_mean) / sam.pixel_std
-    Hp, Wp = img.shape[-2:]
-    img = F.pad(img, (0, 1024 - Wp, 0, 1024 - Hp))
-    return sam.image_encoder(img)
+    """SAM image encoder (adapter di dalam -> dapat gradient). Output feats.
+    image_1024 sudah ter-normalisasi + pad ke 1024x1024 di dataset."""
+    return sam.image_encoder(batch["image_1024"].to(device))
 
 
 def decode_masks(sam, feats, boxes, device):

@@ -20,12 +20,17 @@ from collections import defaultdict
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image
 from pycocotools import mask as mask_utils
 from segment_anything.utils.transforms import ResizeLongestSide
 from torch.utils.data import Dataset
 
 CLASS_NAMES = {0: "Impacted", 1: "Caries", 2: "Periapical Lesion", 3: "Deep Caries"}
+
+# Konstanta normalisasi SAM (sama untuk ViT-B/L/H)
+PIXEL_MEAN = torch.tensor([123.675, 116.28, 103.53]).view(3, 1, 1)
+PIXEL_STD = torch.tensor([58.395, 57.12, 57.375]).view(3, 1, 1)
 
 
 def poly_to_mask(segmentation, h, w):
@@ -97,24 +102,26 @@ class DentexLesionDataset(Dataset):
         box = np.array([x, y, x + bw, y + bh], dtype=np.float32)
 
         # Resize ke ruang 1024 (SAM ResizeLongestSide)
-        img_1024 = self.transform.apply_image(image)
+        img_1024 = self.transform.apply_image(image)  # H'xW'x3, longest side=1024
         box_1024 = self.transform.apply_boxes(box[None, :], (h, w))[0]
+        nh, nw = self.transform.get_preprocess_shape(h, w, self.img_size)
         mask_1024 = np.array(
-            Image.fromarray(mask).resize(
-                (self.transform.get_preprocess_shape(h, w, self.img_size)[1],
-                 self.transform.get_preprocess_shape(h, w, self.img_size)[0]),
-                Image.NEAREST,
-            )
+            Image.fromarray(mask).resize((nw, nh), Image.NEAREST)
         )
-        # pad mask ke 1024x1024 (kanan & bawah, sama seperti SAM image pad)
-        ph, pw = mask_1024.shape
+
+        # Normalisasi SAM lalu PAD ke 1024x1024 (kanan & bawah dengan 0).
+        # Pad di sini supaya semua sample sama ukuran -> bisa di-stack jadi batch.
+        img_t = torch.as_tensor(img_1024, dtype=torch.float32).permute(2, 0, 1)  # 3xH'xW'
+        img_t = (img_t - PIXEL_MEAN) / PIXEL_STD
+        img_t = F.pad(img_t, (0, self.img_size - nw, 0, self.img_size - nh))     # 3x1024x1024
+
         mask_pad = np.zeros((self.img_size, self.img_size), dtype=np.float32)
-        mask_pad[:ph, :pw] = mask_1024
+        mask_pad[:nh, :nw] = mask_1024
 
         return {
-            "image_1024": torch.as_tensor(img_1024).permute(2, 0, 1).contiguous(),  # 3xHxW uint8
-            "box": torch.as_tensor(box_1024, dtype=torch.float32),                  # 4
-            "gt_mask": torch.as_tensor(mask_pad, dtype=torch.float32),              # 1024x1024
+            "image_1024": img_t,                                       # 3x1024x1024 float (SAM-norm)
+            "box": torch.as_tensor(box_1024, dtype=torch.float32),     # 4
+            "gt_mask": torch.as_tensor(mask_pad, dtype=torch.float32), # 1024x1024
             "cls": int(r["cls"]),
             "orig_hw": (h, w),
         }
