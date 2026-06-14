@@ -83,8 +83,9 @@ def train(args):
     va = DataLoader(DentexLesionDataset(va_rec), batch_size=args.bs, shuffle=False,
                     num_workers=2, collate_fn=lambda b: b)
 
-    sam = sam_model_registry["vit_h"](checkpoint=args.sam_ckpt).to(device)
-    inject_adapters(sam)
+    sam = sam_model_registry["vit_h"](checkpoint=args.sam_ckpt)
+    inject_adapters(sam)      # tambah adapter SEBELUM pindah device
+    sam.to(device)            # pindahkan semua (base + adapter) ke GPU
     trainable_report(sam)
 
     opt = torch.optim.AdamW(
