@@ -1,10 +1,14 @@
 """
 Overview renderer (Phase C / demo): SEMUA deteksi YOLO di 1 OPG sekaligus,
-label penyakit + confidence, WARNA beda per kelas penyakit.
+WARNA beda per kelas penyakit.
+
+Dua mode:
+  default          : kotak bbox + label
+  --masks          : overlay SAM+adapter MASK per lesi (warna per penyakit) + kotak
 
 Beda dari make_artifacts.py:
   - make_artifacts = SATU lesi per gambar (untuk eksperimen faithfulness)
-  - make_overview  = SEMUA lesi per gambar (untuk tampilan ringkasan dokter)
+  - make_overview  = SEMUA lesi per gambar (tampilan ringkasan dokter)
 
 Output: outputs/overview/{file}.png
 """
@@ -13,21 +17,30 @@ import glob
 import os
 
 import cv2
-from ultralytics import YOLO
+import numpy as np
 
 from dentex_dataset import CLASS_NAMES
 
 # Warna per kelas (BGR untuk OpenCV)
 COLORS = {
-    0: (255, 0, 0),     # Impacted        - biru
-    1: (255, 255, 0),   # Caries          - cyan
-    2: (0, 255, 255),   # Periapical      - kuning
-    3: (0, 255, 0),     # Deep Caries     - hijau
+    0: (255, 0, 0),     # Impacted    - biru
+    1: (255, 255, 0),   # Caries      - cyan
+    2: (0, 255, 255),   # Periapical  - kuning
+    3: (0, 255, 0),     # Deep Caries - hijau
 }
+ALPHA = 0.45
 
 
 def run(args):
+    from ultralytics import YOLO
+
     model = YOLO(args.yolo_ckpt)
+
+    predictor = None
+    if args.masks:
+        from make_artifacts import load_sam
+        predictor = load_sam(args.sam_ckpt, args.adapter, "cuda")
+
     out_dir = f"{args.drive}/outputs/overview"
     os.makedirs(out_dir, exist_ok=True)
 
@@ -38,20 +51,33 @@ def run(args):
     for p in imgs:
         img = cv2.imread(p)
         res = model.predict(p, imgsz=args.imgsz, conf=args.conf, verbose=False)[0]
-        for b in res.boxes:
-            cls = int(b.cls)
-            conf = float(b.conf)
-            x0, y0, x1, y1 = [int(v) for v in b.xyxy[0].tolist()]
+        dets = [(int(b.cls), float(b.conf), [int(v) for v in b.xyxy[0].tolist()]) for b in res.boxes]
+
+        # overlay mask (kalau --masks)
+        if predictor is not None and dets:
+            import torch
+            predictor.set_image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            overlay = img.copy()
+            for cls, conf, box in dets:
+                with torch.no_grad():
+                    masks, _, _ = predictor.predict(box=np.array(box), multimask_output=False)
+                overlay[masks[0] > 0] = COLORS.get(cls, (0, 255, 0))
+            img = cv2.addWeighted(overlay, ALPHA, img, 1 - ALPHA, 0)
+
+        # kotak + label di atas
+        for cls, conf, box in dets:
+            x0, y0, x1, y1 = box
             color = COLORS.get(cls, (0, 255, 0))
-            cv2.rectangle(img, (x0, y0), (x1, y1), color, 3)
+            cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
             label = f"{CLASS_NAMES[cls]} {conf:.2f}"
-            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
             cv2.rectangle(img, (x0, y0 - th - 8), (x0 + tw + 4, y0), color, -1)
             cv2.putText(img, label, (x0 + 2, y0 - 6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+
         cv2.imwrite(f"{out_dir}/{os.path.basename(p)}", img)
 
-    print(f"✅ {len(imgs)} overview -> {out_dir}")
+    print(f"✅ {len(imgs)} overview ({'mask' if args.masks else 'bbox'}) -> {out_dir}")
     print("   Warna: Impacted=biru, Caries=cyan, Periapical=kuning, Deep Caries=hijau")
 
 
@@ -60,6 +86,9 @@ if __name__ == "__main__":
     ap.add_argument("--drive", default="/content/drive/MyDrive/opg-live")
     ap.add_argument("--yolo_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/yolov8_dentex.pt")
     ap.add_argument("--images_dir", default="/content/yolo/images/val")
+    ap.add_argument("--masks", action="store_true", help="overlay SAM mask per lesi")
+    ap.add_argument("--sam_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/sam_vit_h_4b8939.pth")
+    ap.add_argument("--adapter", default="/content/drive/MyDrive/opg-live/checkpoints/adapter_best.pth")
     ap.add_argument("--conf", type=float, default=0.3)
     ap.add_argument("--imgsz", type=int, default=1024)
     ap.add_argument("--limit", type=int, default=0)
