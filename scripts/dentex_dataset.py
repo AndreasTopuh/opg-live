@@ -69,6 +69,9 @@ def load_records(disease_json, xrays_dir):
         h, w = id2hw[a["image_id"]]
         records.append(
             {
+                "ann_id": a["id"],
+                "image_id": a["image_id"],
+                "img_file": id2file[a["image_id"]],
                 "img_path": os.path.join(xrays_dir, id2file[a["image_id"]]),
                 "bbox_xywh": a["bbox"],
                 "segmentation": a["segmentation"],
@@ -78,6 +81,20 @@ def load_records(disease_json, xrays_dir):
             }
         )
     return records
+
+
+def sample_per_class(records, n_per_class, seed=42):
+    """Ambil n_per_class lesion per kelas (stratified). Untuk eval set GPT-4o
+    yang hemat biaya API. Deterministik (seed)."""
+    by_cls = defaultdict(list)
+    for r in records:
+        by_cls[r["cls"]].append(r)
+    rng = np.random.default_rng(seed)
+    out = []
+    for cls, items in by_cls.items():
+        idx = rng.permutation(len(items))[:n_per_class]
+        out += [items[i] for i in idx]
+    return out
 
 
 class DentexLesionDataset(Dataset):
