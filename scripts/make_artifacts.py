@@ -41,7 +41,7 @@ ALPHA = 0.45
 def load_sam(sam_ckpt, adapter_ckpt, device):
     sam = sam_model_registry["vit_h"](checkpoint=sam_ckpt)
     inject_adapters(sam)
-    state = torch.load(adapter_ckpt, map_location="cpu")
+    state = torch.load(adapter_ckpt, map_location="cpu", weights_only=False)
     load_adapter_state(sam, state["state"])
     print(f"Adapter loaded (Dice {state.get('dice', '?')}, epoch {state.get('epoch', '?')})")
     sam.to(device).eval()
