@@ -23,6 +23,8 @@ def build_prompt(arm, disease, fdi, chunks, mask_id):
     cite_ids = ", ".join(c["id"] for c in chunks)
     return f"""You are a dental radiology decision-support assistant explaining a finding on a panoramic radiograph (OPG). Base your explanation on what the indicated region shows and on what the knowledge base supports.
 
+NOTE ON NUMBERING: any two-digit tooth identifier (e.g. 11, 36, 46) is FDI World Dental Federation notation (quadrant + tooth position), NOT a statistic or measurement.
+
 SPATIAL GROUNDING: {ARM_DESC[arm]}
 DETECTOR OUTPUT (Stage 1): condition = "{disease}" on {fdi_txt}.
 

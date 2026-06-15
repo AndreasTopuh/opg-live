@@ -2,6 +2,20 @@
 
 Semua logika pipeline sebagai `.py` (versi-controlled, di-`git push`). Notebook hanya orchestrate + jalankan di GPU.
 
+**Struktur per-stage:**
+```
+scripts/
+├── stage1/   dentex_to_yolo.py, dentex_to_yolo_enum.py, fdi_assign.py
+│             (detector YOLO: disease bbox + diagnosis, enumeration→FDI)
+├── stage2/   dentex_dataset.py, sam_adapter.py, train_adapter.py
+│             (SAM ViT-H + Medical SAM Adapter → lesion mask)
+└── stage3/   embed_kb.py, retriever.py, prompt_builder.py, llm_gpt.py,
+              metrics.py, make_artifacts.py, run_stage3.py,
+              recompute_metrics.py, analyze_results.py, make_overview.py
+              (RAG + GPT-4o → L-F-V → HR/GS/CTC; + demo overview)
+```
+> `make_artifacts.py` & `make_overview.py` impor lintas-stage; keduanya menambah ketiga folder stage ke `sys.path` otomatis. Notebook memanggil via path absolut `scripts/stageN/...`.
+
 | Script | Stage | Jalan di | Status | Fungsi |
 |---|---|---|---|---|
 | `dentex_dataset.py` | 2-prep | local/Colab | ✅ ada | DENTEX disease (hierarkis) → Dataset lesion (img+box+mask+cls), stratified split |

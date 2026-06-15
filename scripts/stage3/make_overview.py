@@ -19,7 +19,13 @@ import os
 import cv2
 import numpy as np
 
-from dentex_dataset import CLASS_NAMES
+# make stage1/stage2/stage3 modules importable regardless of cwd
+import sys
+_S = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/
+for _d in ("stage1", "stage2", "stage3"):
+    sys.path.insert(0, os.path.join(_S, _d))
+
+from dentex_dataset import CLASS_NAMES  # stage2
 
 # Colour per class (BGR for OpenCV)
 COLORS = {

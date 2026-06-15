@@ -29,9 +29,15 @@ import numpy as np
 import torch
 from segment_anything import SamPredictor, sam_model_registry
 
-from dentex_dataset import CLASS_NAMES, load_records, sample_per_class
-from fdi_assign import EnumFDI
-from sam_adapter import inject_adapters, load_adapter_state
+# make stage1/stage2/stage3 modules importable regardless of cwd
+import sys
+_S = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # scripts/
+for _d in ("stage1", "stage2", "stage3"):
+    sys.path.insert(0, os.path.join(_S, _d))
+
+from dentex_dataset import CLASS_NAMES, load_records, sample_per_class  # stage2
+from fdi_assign import EnumFDI                                          # stage1
+from sam_adapter import inject_adapters, load_adapter_state             # stage2
 
 BOX_COLOR = (0, 255, 0)      # green (BGR)
 MASK_COLOR = (0, 0, 255)     # red (BGR)
