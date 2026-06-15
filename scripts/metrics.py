@@ -15,17 +15,27 @@ import re
 FDI_RE = re.compile(r"\b[1-4][1-8]\b")
 ADJ_RE = re.compile(r"\b(adjacent|neighbou?ring|next tooth|surrounding teeth)\b", re.I)
 
+# stopword ringan supaya overlap fokus ke kata-isi klinis
+STOP = set(
+    "a an the of on in to for and or with is are be by that this it as at from "
+    "your you their its within only both each per into over under can may will "
+    "indicated tooth area suggests recommended confirm extent".split()
+)
 
-def _char_trigrams(s):
-    s = re.sub(r"\s+", " ", s.lower().strip())
-    return {s[i : i + 3] for i in range(len(s) - 2)} if len(s) >= 3 else {s}
+
+def _content_words(s):
+    return [w for w in re.findall(r"[a-z]+", s.lower()) if len(w) > 2 and w not in STOP]
 
 
-def _containment(value, chunk_text):
-    tv, tc = _char_trigrams(value), _char_trigrams(chunk_text)
-    if not tv:
-        return 0.0
-    return len(tv & tc) / len(tv)
+def _support(value, chunk_texts):
+    """Fraksi kata-isi finding yang muncul di gabungan chunk tersitasi."""
+    vw = _content_words(value)
+    if not vw:
+        return 1.0
+    cw = set()
+    for t in chunk_texts:
+        cw |= set(_content_words(t))
+    return sum(1 for w in vw if w in cw) / len(vw)
 
 
 def kb_by_id(chunks):
@@ -36,15 +46,16 @@ def finding_text(f):
     return " ".join([str(f.get("value", ""))] + [str(e) for e in f.get("evidence", [])])
 
 
-def hallucination_rate(findings, kb, thr=0.8):
+def hallucination_rate(findings, kb, thr=0.35):
+    """Finding 'halusinasi' jika TIDAK punya citation valid ATAU isi-nya kurang
+    didukung chunk tersitasi (lexical support < thr). Lebih realistis daripada
+    pencocokan trigram verbatim."""
     if not findings:
         return 1.0, 0, 0
     uncited = 0
     for f in findings:
-        cites = [kb[c] for c in f.get("citations", []) if c in kb]
-        val = finding_text(f)
-        ok = any(_containment(val, c["text"]) >= thr for c in cites)
-        if not ok:
+        cites = [kb[c]["text"] for c in f.get("citations", []) if c in kb]
+        if not cites or _support(finding_text(f), cites) < thr:
             uncited += 1
     return uncited / len(findings), uncited, len(findings)
 

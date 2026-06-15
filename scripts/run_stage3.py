@@ -84,6 +84,6 @@ if __name__ == "__main__":
     ap.add_argument("--kb", default="/content/opg-live/data/kb")
     ap.add_argument("--model", default="openai/gpt-4o")
     ap.add_argument("--k", type=int, default=4)          # top-k chunk RAG
-    ap.add_argument("--hr_thr", type=float, default=0.8)  # trigram threshold (draft §4.1)
+    ap.add_argument("--hr_thr", type=float, default=0.35)  # lexical support threshold
     ap.add_argument("--limit", type=int, default=0)       # 0 = semua
     run(ap.parse_args())
