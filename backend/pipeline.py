@@ -104,11 +104,25 @@ class OPGPipeline:
             cv2.rectangle(ov, (x0, y0 - th - 8), (x0 + tw + 4, y0), color, -1)
             cv2.putText(ov, lbl, (x0 + 2, y0 - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
 
+        # map every tooth box to a disease detection (if one sits inside it)
+        from fdi_assign import containment
+        tooth_regions = []
+        for tbox, fdi, tconf in teeth:
+            match = next((d for d in dets if containment(d["bbox"], tbox) >= 0.4), None)
+            tooth_regions.append({
+                "fdi": fdi, "box": [int(v) for v in tbox], "conf": round(tconf, 3),
+                "has_disease": match is not None,
+                "disease": match["disease"] if match else None,
+                "det_idx": match["idx"] if match else None,
+            })
+
+        H, W = img_bgr.shape[:2]
         aid = uuid.uuid4().hex[:8]
         _CACHE[aid] = {"img": img_bgr, "dets": dets}
         findings = [{"idx": d["idx"], "disease": d["disease"], "fdi": d["fdi"],
                      "conf": d["conf"], "bbox": d["bbox"]} for d in dets]
-        return {"id": aid, "overview": _png_b64(ov), "findings": findings}
+        return {"id": aid, "image": _png_b64(img_bgr), "width": W, "height": H,
+                "teeth": tooth_regions, "overview": _png_b64(ov), "findings": findings}
 
     # ---------- Stage 2 view: segment one clicked tooth ----------
     def segment(self, aid, idx):
@@ -137,7 +151,12 @@ class OPGPipeline:
         cx1, cy1 = min(W, x1 + pad), min(H, y1 + pad)
         crop = cv2.addWeighted(overlay, 0.5, img, 0.5, 0)[cy0:cy1, cx0:cx1]
 
-        return {"view": _png_b64(view), "crop": _png_b64(crop),
+        # transparent full-size mask PNG (for in-place overlay on the canvas)
+        rgba = np.zeros((H, W, 4), np.uint8)
+        rgba[mask > 0, :3] = color
+        rgba[mask > 0, 3] = 170
+        return {"view": _png_b64(view), "crop": _png_b64(crop), "overlay": _png_b64(rgba),
+                "box": d["bbox"],
                 "disease": d["disease"], "fdi": d["fdi"], "conf": d["conf"],
                 "mask_area_px": int(mask.sum()), "sam_score": d["sam_score"]}
 

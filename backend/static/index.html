@@ -11,34 +11,38 @@
   header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
   header h1{font-size:20px;margin:0;font-weight:700}
   header .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
-  main{max-width:1150px;margin:0 auto;padding:24px 28px;display:grid;grid-template-columns:340px 1fr;gap:20px}
+  main{max-width:1180px;margin:0 auto;padding:24px 28px;display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
-  .card h2{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
-  .drop{border:2px dashed var(--line);border-radius:12px;padding:30px;text-align:center;color:var(--muted);cursor:pointer}
+  .card h2{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--muted);cursor:pointer;display:block}
   .drop:hover{border-color:var(--accent);color:var(--ink)}
-  img.result{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
   .finding{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;cursor:pointer;transition:.12s}
   .finding:hover,.finding.active{border-color:var(--accent);background:#faf8ff}
   .finding .dx{font-weight:600;font-size:14px}.finding .meta{font-size:12px;color:var(--muted)}
-  .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:#f0ecff;color:var(--accent)}
   button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
-  button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
   .muted{color:var(--muted);font-size:13px}
+  /* interactive stage */
+  #stage{position:relative;display:inline-block;width:100%;line-height:0;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  #stage img.base,#stage img.mask{width:100%;display:block}
+  #stage img.mask{position:absolute;inset:0;pointer-events:none}
+  .tbox{position:absolute;border:2px solid rgba(150,150,150,.55);border-radius:3px;cursor:pointer;transition:.1s;background:transparent}
+  .tbox:hover{border-color:var(--accent);background:rgba(124,92,255,.12)}
+  .tbox.disease{border-width:2.5px}
+  .tbox.sel{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)}
+  .tbox .tag{position:absolute;top:-17px;left:0;font-size:10px;background:#000a;color:#fff;padding:0 4px;border-radius:3px;white-space:nowrap;line-height:1.4}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:10px}
-  .legend span{display:inline-flex;align-items:center;gap:5px}
-  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
-  .metrics{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:13px}
-  .metrics b{display:block;font-size:18px}
-  .grid2{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start}
+  .legend span{display:inline-flex;align-items:center;gap:5px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .metrics{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px}.metrics b{display:block;font-size:18px}
+  .grid2{display:grid;grid-template-columns:2.4fr 1fr;gap:14px;align-items:start;margin-top:8px}
+  .hint{font-size:12px;color:var(--muted);margin:8px 0 0}
 </style>
 </head>
 <body>
 <header>
   <h1>🦷 OPG-Live</h1>
-  <span class="tag">MVP · YOLOv8 detect → SAM Adapter segment</span>
+  <span class="tag">MVP · click a tooth to segment</span>
 </header>
 <main>
-  <!-- LEFT: upload + findings -->
   <div>
     <section class="card">
       <h2>1 · Upload OPG</h2>
@@ -46,31 +50,37 @@
         <input type="file" id="file" accept="image/*" hidden>
         <div>Click or drop a panoramic image</div>
       </label>
-      <p class="muted" id="status" style="margin-top:10px"></p>
+      <p class="muted" id="status"></p>
     </section>
-
     <section class="card" style="margin-top:18px">
-      <h2>Findings <button id="allBtn" onclick="showOverview()">▦ Overview (all)</button></h2>
+      <h2>Findings <button onclick="resetView()">▦ Overview</button></h2>
       <div id="findings"><p class="muted">Upload an OPG to detect lesions.</p></div>
     </section>
   </div>
 
-  <!-- RIGHT: viewer -->
   <section class="card">
-    <h2><span id="viewTitle">Overview</span></h2>
-    <div id="viewer"><p class="muted">Result appears here.</p></div>
-    <div class="legend" id="legend" style="display:none">
-      <span><i class="sw" style="background:#00f"></i>Impacted</span>
-      <span><i class="sw" style="background:#0ff"></i>Caries</span>
-      <span><i class="sw" style="background:#ff0"></i>Periapical</span>
-      <span><i class="sw" style="background:#0f0"></i>Deep Caries</span>
+    <h2><span id="vtitle">Viewer</span></h2>
+    <div class="grid2">
+      <div>
+        <div id="stage"><p class="muted" style="line-height:1.5">Result appears here.</p></div>
+        <p class="hint" id="hint"></p>
+        <div class="legend" id="legend" style="display:none">
+          <span><i class="sw" style="background:#00f"></i>Impacted</span>
+          <span><i class="sw" style="background:#0ff"></i>Caries</span>
+          <span><i class="sw" style="background:#ff0"></i>Periapical</span>
+          <span><i class="sw" style="background:#0f0"></i>Deep Caries</span>
+          <span><i class="sw" style="background:#999"></i>healthy tooth (click)</span>
+        </div>
+      </div>
+      <div id="side"></div>
     </div>
   </section>
 </main>
 
 <script>
 const API = "";
-let lastId = null, overviewSrc = null, findings = [];
+const BORDER = {Impacted:"#00f", Caries:"#0ff", "Periapical Lesion":"#ff0", "Deep Caries":"#0f0"};
+let D = null;  // analyze result
 const $ = s => document.querySelector(s);
 
 $("#drop").onclick = () => $("#file").click();
@@ -80,58 +90,66 @@ $("#drop").ondrop = e => { e.preventDefault(); upload(e.dataTransfer.files[0]); 
 
 async function upload(f){
   if(!f) return;
-  $("#status").textContent = "⏳ Running YOLOv8 + SAM adapter… (FIRST run loads models, can take 30-90s — please wait, don't re-upload)";
+  $("#status").textContent = "⏳ Running YOLOv8 + SAM… (FIRST run loads models 30-90s — please wait, don't re-upload)";
   const fd = new FormData(); fd.append("file", f);
   try{
     const r = await fetch(API+"/api/analyze",{method:"POST",body:fd});
-    let d;
-    try { d = await r.json(); } catch(e){ d = {error:"non-JSON response (HTTP "+r.status+")"}; }
-    if(!r.ok){ $("#status").textContent = "❌ HTTP "+r.status+" — "+(d.error||d.detail||JSON.stringify(d)); return; }
-    if(d.error){ $("#status").textContent = "❌ "+d.error; return; }
-    if(!d.findings){ $("#status").textContent = "❌ unexpected response: "+JSON.stringify(d).slice(0,200); return; }
-    lastId = d.id; overviewSrc = d.overview; findings = d.findings;
-    $("#status").textContent = `✅ ${d.findings.length} lesion(s) detected.`;
-    renderFindings(); showOverview();
-  }catch(e){
-    $("#status").textContent = "❌ request failed: "+e+" (model still loading? wait & retry once)";
-  }
+    let d; try{ d = await r.json(); }catch(e){ d={error:"non-JSON (HTTP "+r.status+")"}; }
+    if(!r.ok||d.error||!d.teeth){ $("#status").textContent="❌ "+(d.error||d.detail||"HTTP "+r.status); return; }
+    D = d;
+    $("#status").textContent = `✅ ${d.findings.length} lesion(s), ${d.teeth.length} teeth detected.`;
+    renderFindings(); resetView();
+  }catch(e){ $("#status").textContent="❌ "+e+" (model still loading? wait & retry once)"; }
 }
 
 function renderFindings(){
-  if(!findings.length){ $("#findings").innerHTML='<p class="muted">No lesions detected.</p>'; return; }
-  $("#findings").innerHTML = findings.map(f => `
-    <div class="finding" data-idx="${f.idx}" onclick="segment(${f.idx})">
-      <div><span class="dx">${f.disease}</span>
-        <span class="meta"> · ${f.fdi ? "FDI "+f.fdi : "tooth ?"} · ${f.conf}</span></div>
-      <span class="pill">segment →</span>
-    </div>`).join("");
+  $("#findings").innerHTML = D.findings.length
+    ? D.findings.map(f=>`<div class="finding" data-det="${f.idx}" onclick="clickDisease(${f.idx})">
+        <div><span class="dx">${f.disease}</span><span class="meta"> · ${f.fdi?"FDI "+f.fdi:"?"} · ${f.conf}</span></div>
+        <span class="muted">segment →</span></div>`).join("")
+    : '<p class="muted">No lesions detected.</p>';
 }
 
-function showOverview(){
-  document.querySelectorAll(".finding").forEach(x=>x.classList.remove("active"));
-  $("#viewTitle").textContent = "Overview — all detections";
-  $("#viewer").innerHTML = overviewSrc ? `<img class="result" src="${overviewSrc}">` : '<p class="muted">No result.</p>';
-  $("#legend").style.display = overviewSrc ? "flex" : "none";
+// interactive view: raw image + clickable tooth boxes (no masks yet)
+function resetView(){
+  $("#vtitle").textContent = "Click a tooth on the image";
+  $("#side").innerHTML = "";
+  $("#hint").textContent = "Coloured box = lesion detected · grey = healthy tooth. Click any tooth.";
+  $("#legend").style.display = "flex";
+  const pct = (v,t)=> (v/t*100)+"%";
+  const boxes = D.teeth.map(t=>{
+    const [x0,y0,x1,y1]=t.box, col = t.has_disease?BORDER[t.disease]||"#0f0":"";
+    const style = `left:${pct(x0,D.width)};top:${pct(y0,D.height)};width:${pct(x1-x0,D.width)};height:${pct(y1-y0,D.height)};`
+      + (t.has_disease?`border-color:${col};`:"");
+    const onclick = t.has_disease?`clickDisease(${t.det_idx})`:`clickHealthy('${t.fdi}')`;
+    const tag = t.has_disease?`<span class="tag" style="background:${col};color:#000">${t.disease}</span>`:"";
+    return `<div class="tbox ${t.has_disease?'disease':''}" data-det="${t.det_idx??''}" style="${style}" onclick="${onclick}">${tag}</div>`;
+  }).join("");
+  $("#stage").innerHTML = `<img class="base" src="${D.image}"><div id="masklayer"></div>${boxes}`;
 }
 
-async function segment(idx){
-  document.querySelectorAll(".finding").forEach(x=>x.classList.toggle("active", x.dataset.idx==idx));
-  $("#viewTitle").textContent = "Segmenting…";
-  $("#viewer").innerHTML = '<p class="muted">⏳ rendering mask…</p>';
-  const r = await fetch(API+"/api/segment",{method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({id:lastId, idx:idx})});
+function clickHealthy(fdi){
+  $("#vtitle").textContent = `FDI ${fdi} — healthy`;
+  $("#side").innerHTML = `<p class="muted">No pathology detected on this tooth — no mask.</p>`;
+  document.querySelectorAll(".tbox").forEach(b=>b.classList.remove("sel"));
+}
+
+async function clickDisease(detIdx){
+  document.querySelectorAll(".finding,.tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
+  document.querySelectorAll(".finding").forEach(b=>b.classList.toggle("active", b.dataset.det==detIdx));
+  $("#vtitle").textContent = "Segmenting…";
+  const r = await fetch(API+"/api/segment",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({id:D.id, idx:detIdx})});
   const d = await r.json();
-  if(d.error){ $("#viewer").innerHTML=`<p class="muted">⚠️ ${d.error}</p>`; return; }
-  $("#viewTitle").textContent = `${d.disease}${d.fdi?" · FDI "+d.fdi:""}`;
-  $("#legend").style.display="none";
-  $("#viewer").innerHTML = `
-    <div class="grid2">
-      <img class="result" src="${d.view}">
-      <div><img class="result" src="${d.crop}"><p class="muted" style="text-align:center;margin:6px 0">zoom</p></div>
-    </div>
-    <div class="metrics">
-      <span>diagnosis<b>${d.disease}</b></span>
+  if(d.error){ $("#side").innerHTML=`<p class="muted">⚠️ ${d.error}</p>`; return; }
+  $("#vtitle").textContent = `${d.disease}${d.fdi?" · FDI "+d.fdi:""}`;
+  // overlay the transparent mask in-place over the raw image
+  const ml = $("#masklayer");
+  if(ml) ml.innerHTML = `<img class="mask" src="${d.overlay}">`;
+  $("#side").innerHTML = `
+    <img src="${d.crop}" style="width:100%;border-radius:8px;border:1px solid var(--line)">
+    <p class="muted" style="text-align:center;margin:4px 0">zoom</p>
+    <div class="metrics" style="flex-direction:column;gap:8px">
       <span>tooth (FDI)<b>${d.fdi||"?"}</b></span>
       <span>detector conf<b>${d.conf}</b></span>
       <span>mask area (px)<b>${d.mask_area_px.toLocaleString()}</b></span>
