@@ -41,6 +41,11 @@ def run(args):
         from make_artifacts import load_sam
         predictor = load_sam(args.sam_ckpt, args.adapter, "cuda")
 
+    enum = None
+    if args.enum_ckpt:
+        from fdi_assign import EnumFDI
+        enum = EnumFDI(args.enum_ckpt, args.imgsz, args.conf)
+
     out_dir = f"{args.drive}/outputs/overview"
     os.makedirs(out_dir, exist_ok=True)
 
@@ -64,12 +69,16 @@ def run(args):
                 overlay[masks[0] > 0] = COLORS.get(cls, (0, 255, 0))
             img = cv2.addWeighted(overlay, ALPHA, img, 1 - ALPHA, 0)
 
+        # FDI per deteksi (kalau enum aktif)
+        teeth = enum.teeth(p) if enum else []
+
         # kotak + label di atas
         for cls, conf, box in dets:
             x0, y0, x1, y1 = box
             color = COLORS.get(cls, (0, 255, 0))
             cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
-            label = f"{CLASS_NAMES[cls]} {conf:.2f}"
+            fdi = enum.assign(box, teeth) if enum else None
+            label = f"FDI {fdi} {CLASS_NAMES[cls]} {conf:.2f}" if fdi else f"{CLASS_NAMES[cls]} {conf:.2f}"
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
             cv2.rectangle(img, (x0, y0 - th - 8), (x0 + tw + 4, y0), color, -1)
             cv2.putText(img, label, (x0 + 2, y0 - 6),
@@ -87,6 +96,7 @@ if __name__ == "__main__":
     ap.add_argument("--yolo_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/yolov8_dentex.pt")
     ap.add_argument("--images_dir", default="/content/yolo/images/val")
     ap.add_argument("--masks", action="store_true", help="overlay SAM mask per lesi")
+    ap.add_argument("--enum_ckpt", default="", help="detektor gigi -> tampilkan FDI di label")
     ap.add_argument("--sam_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/sam_vit_h_4b8939.pth")
     ap.add_argument("--adapter", default="/content/drive/MyDrive/opg-live/checkpoints/adapter_best.pth")
     ap.add_argument("--conf", type=float, default=0.3)

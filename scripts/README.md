@@ -8,6 +8,8 @@ Semua logika pipeline sebagai `.py` (versi-controlled, di-`git push`). Notebook 
 | `sam_adapter.py` | 2 | **Colab GPU** | ✅ ada | Medical SAM Adapter (Wu 2025): inject adapter, freeze base, ~2-3% trainable |
 | `train_adapter.py` | 2 | **Colab GPU** | ✅ ada | Training loop box→mask, Dice+BCE, per-kelas Dice, checkpoint→Drive. AMP fp16, decode per-gambar. Val Dice 0.94 |
 | `dentex_to_yolo.py` | 1-prep | local/Colab | ✅ ada | DENTEX disease COCO → format YOLOv8 (split per-gambar) + dentex.yaml |
+| `dentex_to_yolo_enum.py` | 1b-prep | local/Colab | ✅ ada | DENTEX enumeration → YOLO 32-kelas FDI (kuadran+gigi) |
+| `fdi_assign.py` | 1b | Colab GPU | ✅ ada | Enumeration YOLO → assign FDI ke deteksi penyakit (containment) |
 | `make_artifacts.py` | 1→2→3 | **Colab GPU** | ✅ ada | Deteksi YOLO Stage 1 (`--mode yolo`) → SAM+adapter mask → 3 arm + manifest (+ match GT untuk cek diagnosis benar). `--mode gt` = oracle sekunder |
 | `auto_pipeline.py` | 1+2 | **Colab GPU** | ⏳ demo | YOLOv8 predict → mask (untuk demo deployment Phase C) |
 

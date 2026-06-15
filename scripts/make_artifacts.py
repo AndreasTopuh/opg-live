@@ -30,6 +30,7 @@ import torch
 from segment_anything import SamPredictor, sam_model_registry
 
 from dentex_dataset import CLASS_NAMES, load_records, sample_per_class
+from fdi_assign import EnumFDI
 from sam_adapter import inject_adapters, load_adapter_state
 
 BOX_COLOR = (0, 255, 0)      # hijau (BGR)
@@ -165,6 +166,9 @@ def run(args):
         os.makedirs(f"{out_dir}/{arm}", exist_ok=True)
 
     predictor = load_sam(args.sam_ckpt, args.adapter, device)
+    enum = EnumFDI(args.enum_ckpt, args.imgsz, args.conf) if args.enum_ckpt else None
+    if enum:
+        print("Enumeration YOLO aktif -> FDI diprediksi (pred_fdi)")
 
     by_img = defaultdict(list)
     for dct in dets:
@@ -174,6 +178,7 @@ def run(args):
     for img_path, group in by_img.items():
         img_bgr = cv2.imread(img_path)
         predictor.set_image(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB))
+        teeth = enum.teeth(img_path) if enum else []
         for dct in group:
             box = np.array(dct["bbox_xyxy"])
             with torch.no_grad():
@@ -195,7 +200,8 @@ def run(args):
                 if i > gt_iou:
                     gt_iou, gt_cls, gt_fdi = i, gc, gf
             matched = gt_cls if gt_iou >= 0.5 else None
-            target_fdi = gt_fdi if gt_iou >= 0.5 else None
+            target_fdi = gt_fdi if gt_iou >= 0.5 else None   # FDI bersih utk prompt eksperimen
+            pred_fdi = EnumFDI.assign(dct["bbox_xyxy"], teeth) if enum else None  # FDI prediksi (deployment)
 
             manifest.append({
                 "det_id": dct["det_id"],
@@ -208,6 +214,8 @@ def run(args):
                 "sam_score": round(float(scores[0]), 4),
                 "matched_gt_cls": matched,
                 "target_fdi": target_fdi,
+                "pred_fdi": pred_fdi,
+                "fdi_correct": (pred_fdi == target_fdi) if (pred_fdi and target_fdi) else None,
                 "gt_iou": round(gt_iou, 3),
                 "correct": (matched == dct["pred_cls"]) if matched is not None else False,
                 "artifacts": {arm: f"{arm}/{dct['det_id']}.png" for arm in arts},
@@ -233,6 +241,7 @@ if __name__ == "__main__":
     ap.add_argument("--drive", default="/content/drive/MyDrive/opg-live")
     ap.add_argument("--mode", choices=["yolo", "gt"], default="yolo")
     ap.add_argument("--yolo_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/yolov8_dentex.pt")
+    ap.add_argument("--enum_ckpt", default="", help="detektor gigi (FDI). Kosong = FDI dari GT-match saja")
     ap.add_argument("--images_dir", default="/content/yolo/images/val")  # held-out
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--imgsz", type=int, default=1024)
