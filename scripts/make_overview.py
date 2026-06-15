@@ -78,7 +78,14 @@ def run(args):
             color = COLORS.get(cls, (0, 255, 0))
             cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
             fdi = enum.assign(box, teeth) if enum else None
-            label = f"FDI {fdi} {CLASS_NAMES[cls]} {conf:.2f}" if fdi else f"{CLASS_NAMES[cls]} {conf:.2f}"
+            # Label gaya GT DENTEX: "Q: <kuadran> N: <gigi> D: <penyakit>"
+            if fdi and len(str(fdi)) == 2:
+                q, n = str(fdi)[0], str(fdi)[1]
+                label = f"Q: {q} N: {n} D: {CLASS_NAMES[cls]}"
+            elif fdi:
+                label = f"FDI {fdi} {CLASS_NAMES[cls]}"
+            else:
+                label = f"{CLASS_NAMES[cls]} {conf:.2f}"
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
             cv2.rectangle(img, (x0, y0 - th - 8), (x0 + tw + 4, y0), color, -1)
             cv2.putText(img, label, (x0 + 2, y0 - 6),
