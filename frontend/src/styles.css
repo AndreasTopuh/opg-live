@@ -1,0 +1,26 @@
+:root{--bg:#f7f4ee;--card:#fff;--ink:#1c1a17;--muted:#6b6459;--line:#e6e0d6;--accent:#7c5cff;}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+header h1{font-size:20px;margin:0;font-weight:700}
+header .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+main{max-width:1150px;margin:0 auto;padding:24px 28px;display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h2{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:30px;text-align:center;color:var(--muted);cursor:pointer;display:block}
+.drop:hover{border-color:var(--accent);color:var(--ink)}
+img.result{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+.finding{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;cursor:pointer;transition:.12s}
+.finding:hover,.finding.active{border-color:var(--accent);background:#faf8ff}
+.finding .dx{font-weight:600;font-size:14px}.finding .meta{font-size:12px;color:var(--muted)}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;background:#f0ecff;color:var(--accent)}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+.muted{color:var(--muted);font-size:13px}
+.center{text-align:center;margin:6px 0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.metrics{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px}
+.metrics b{display:block;font-size:18px}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start}

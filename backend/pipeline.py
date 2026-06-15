@@ -36,9 +36,19 @@ def _png_b64(img_bgr):
 
 
 class OPGPipeline:
-    def __init__(self, drive, conf=0.3, imgsz=1024, device="cuda"):
+    def __init__(self, drive, conf=0.3, imgsz=1024, device=None):
         from ultralytics import YOLO
 
+        # device auto: CUDA only if it has enough VRAM for SAM ViT-H (~7-8GB),
+        # otherwise CPU (e.g. a 4GB laptop GPU). Override with env OPG_DEVICE.
+        if device is None:
+            device = os.environ.get("OPG_DEVICE")
+        if device is None:
+            device = "cpu"
+            if torch.cuda.is_available():
+                free, _ = torch.cuda.mem_get_info()
+                device = "cuda" if free / 1e9 > 6 else "cpu"
+        self.device = device
         ckpt = f"{drive}/checkpoints"
         self.conf = conf
         self.imgsz = imgsz
@@ -50,7 +60,7 @@ class OPGPipeline:
         self.drive = drive
         self._retr = None
         self._client = None
-        print("OPGPipeline ready (YOLO disease + YOLO FDI + SAM adapter loaded).")
+        print(f"OPGPipeline ready on '{device}' (YOLO disease + YOLO FDI + SAM adapter).")
 
     @staticmethod
     def _first_existing(*paths):
