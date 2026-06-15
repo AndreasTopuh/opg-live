@@ -80,14 +80,21 @@ $("#drop").ondrop = e => { e.preventDefault(); upload(e.dataTransfer.files[0]); 
 
 async function upload(f){
   if(!f) return;
-  $("#status").textContent = "⏳ Running YOLOv8 + SAM adapter… (first run loads models, ~30-60s)";
+  $("#status").textContent = "⏳ Running YOLOv8 + SAM adapter… (FIRST run loads models, can take 30-90s — please wait, don't re-upload)";
   const fd = new FormData(); fd.append("file", f);
-  const r = await fetch(API+"/api/analyze",{method:"POST",body:fd});
-  const d = await r.json();
-  if(d.error){ $("#status").textContent="❌ "+d.error; return; }
-  lastId = d.id; overviewSrc = d.overview; findings = d.findings;
-  $("#status").textContent = `✅ ${d.findings.length} lesion(s) detected.`;
-  renderFindings(); showOverview();
+  try{
+    const r = await fetch(API+"/api/analyze",{method:"POST",body:fd});
+    let d;
+    try { d = await r.json(); } catch(e){ d = {error:"non-JSON response (HTTP "+r.status+")"}; }
+    if(!r.ok){ $("#status").textContent = "❌ HTTP "+r.status+" — "+(d.error||d.detail||JSON.stringify(d)); return; }
+    if(d.error){ $("#status").textContent = "❌ "+d.error; return; }
+    if(!d.findings){ $("#status").textContent = "❌ unexpected response: "+JSON.stringify(d).slice(0,200); return; }
+    lastId = d.id; overviewSrc = d.overview; findings = d.findings;
+    $("#status").textContent = `✅ ${d.findings.length} lesion(s) detected.`;
+    renderFindings(); showOverview();
+  }catch(e){
+    $("#status").textContent = "❌ request failed: "+e+" (model still loading? wait & retry once)";
+  }
 }
 
 function renderFindings(){
