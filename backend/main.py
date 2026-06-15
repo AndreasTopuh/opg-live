@@ -56,6 +56,16 @@ async def analyze(file: UploadFile = File(...)):
     return pipe().analyze(img)
 
 
+class SegmentReq(BaseModel):
+    id: str
+    idx: int
+
+
+@app.post("/api/segment")
+def segment(req: SegmentReq):
+    return pipe().segment(req.id, req.idx)
+
+
 class ExplainReq(BaseModel):
     id: str
     idx: int

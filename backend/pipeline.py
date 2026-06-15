@@ -100,7 +100,38 @@ class OPGPipeline:
                      "conf": d["conf"], "bbox": d["bbox"]} for d in dets]
         return {"id": aid, "overview": _png_b64(ov), "findings": findings}
 
-    # ---------- Stage 3: explain one finding (click-to-explain) ----------
+    # ---------- Stage 2 view: segment one clicked tooth ----------
+    def segment(self, aid, idx):
+        if aid not in _CACHE:
+            return {"error": "analysis expired; re-upload"}
+        d = next((x for x in _CACHE[aid]["dets"] if x["idx"] == idx), None)
+        if d is None:
+            return {"error": "finding not found"}
+        img = _CACHE[aid]["img"]
+        mask, box = d["mask"], d["bbox"]
+        color = COLORS.get(d["cls"], (0, 255, 0))
+
+        # full OPG with ONLY this lesion's mask highlighted + box + label
+        overlay = img.copy()
+        overlay[mask > 0] = color
+        view = cv2.addWeighted(overlay, 0.5, img, 0.5, 0)
+        x0, y0, x1, y1 = box
+        cv2.rectangle(view, (x0, y0), (x1, y1), color, 2)
+        lbl = (f"FDI {d['fdi']} " if d["fdi"] else "") + d["disease"]
+        cv2.putText(view, lbl, (x0, max(12, y0 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+        # zoomed crop around the lesion (padded)
+        H, W = img.shape[:2]
+        pad = 35
+        cx0, cy0 = max(0, x0 - pad), max(0, y0 - pad)
+        cx1, cy1 = min(W, x1 + pad), min(H, y1 + pad)
+        crop = cv2.addWeighted(overlay, 0.5, img, 0.5, 0)[cy0:cy1, cx0:cx1]
+
+        return {"view": _png_b64(view), "crop": _png_b64(crop),
+                "disease": d["disease"], "fdi": d["fdi"], "conf": d["conf"],
+                "mask_area_px": int(mask.sum()), "sam_score": d["sam_score"]}
+
+    # ---------- Stage 3: explain one finding (click-to-explain, optional) ----------
     def explain(self, aid, idx, arm="hybrid"):
         if aid not in _CACHE:
             return {"error": "analysis expired; re-upload"}
