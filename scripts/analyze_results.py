@@ -1,7 +1,7 @@
 """
-Analisis hasil Stage 3 (§4.1/§4.3): mean per arm + 95% bootstrap CI (10k),
-Friedman (paired 3 arm) + Wilcoxon signed-rank pairwise + Bonferroni, lalu
-breakdown per-kelas untuk hipotesis H2-H5.
+Analyse Stage 3 results (§4.1/§4.3): mean per arm + 95% bootstrap CI (10k),
+Friedman (paired 3 arms) + pairwise Wilcoxon signed-rank + Bonferroni, then a
+per-class breakdown for hypotheses H2-H5.
 """
 import argparse
 import json
@@ -54,7 +54,7 @@ def run(args):
                 except ValueError:
                     print(f"    {ARMS[i]} vs {ARMS[j]}: (no variance / tie)")
 
-    print("\n=== per-kelas mean (H2-H5) ===")
+    print("\n=== per-class mean (H2-H5) ===")
     classes = sorted(set(r["pred_cls_name"] for r in rows))
     for metric in ["HR", "GS", "CTC"]:
         print(f"\n {metric}:")

@@ -1,14 +1,14 @@
 """
-Overview renderer (Phase C / demo): SEMUA deteksi YOLO di 1 OPG sekaligus,
-WARNA beda per kelas penyakit.
+Overview renderer (Phase C / demo): ALL YOLO detections on one OPG at once,
+colour-coded per disease class.
 
-Dua mode:
-  default          : kotak bbox + label
-  --masks          : overlay SAM+adapter MASK per lesi (warna per penyakit) + kotak
+Two modes:
+  default          : bbox + label
+  --masks          : SAM+adapter MASK overlay per lesion (colour per disease) + box
 
-Beda dari make_artifacts.py:
-  - make_artifacts = SATU lesi per gambar (untuk eksperimen faithfulness)
-  - make_overview  = SEMUA lesi per gambar (tampilan ringkasan dokter)
+Difference from make_artifacts.py:
+  - make_artifacts = ONE lesion per image (for the faithfulness experiment)
+  - make_overview  = ALL lesions per image (clinician summary view)
 
 Output: outputs/overview/{file}.png
 """
@@ -21,12 +21,12 @@ import numpy as np
 
 from dentex_dataset import CLASS_NAMES
 
-# Warna per kelas (BGR untuk OpenCV)
+# Colour per class (BGR for OpenCV)
 COLORS = {
-    0: (255, 0, 0),     # Impacted    - biru
+    0: (255, 0, 0),     # Impacted    - blue
     1: (255, 255, 0),   # Caries      - cyan
-    2: (0, 255, 255),   # Periapical  - kuning
-    3: (0, 255, 0),     # Deep Caries - hijau
+    2: (0, 255, 255),   # Periapical  - yellow
+    3: (0, 255, 0),     # Deep Caries - green
 }
 ALPHA = 0.45
 
@@ -58,7 +58,7 @@ def run(args):
         res = model.predict(p, imgsz=args.imgsz, conf=args.conf, verbose=False)[0]
         dets = [(int(b.cls), float(b.conf), [int(v) for v in b.xyxy[0].tolist()]) for b in res.boxes]
 
-        # overlay mask (kalau --masks)
+        # mask overlay (if --masks)
         if predictor is not None and dets:
             import torch
             predictor.set_image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
@@ -69,16 +69,16 @@ def run(args):
                 overlay[masks[0] > 0] = COLORS.get(cls, (0, 255, 0))
             img = cv2.addWeighted(overlay, ALPHA, img, 1 - ALPHA, 0)
 
-        # FDI per deteksi (kalau enum aktif)
+        # FDI per detection (if enum active)
         teeth = enum.teeth(p) if enum else []
 
-        # kotak + label di atas
+        # boxes + labels on top
         for cls, conf, box in dets:
             x0, y0, x1, y1 = box
             color = COLORS.get(cls, (0, 255, 0))
             cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
             fdi = enum.assign(box, teeth) if enum else None
-            # Label gaya GT DENTEX: "Q: <kuadran> N: <gigi> D: <penyakit>"
+            # GT-style DENTEX label: "Q: <quadrant> N: <tooth> D: <disease>"
             if fdi and len(str(fdi)) == 2:
                 q, n = str(fdi)[0], str(fdi)[1]
                 label = f"Q: {q} N: {n} D: {CLASS_NAMES[cls]}"
@@ -93,8 +93,8 @@ def run(args):
 
         cv2.imwrite(f"{out_dir}/{os.path.basename(p)}", img)
 
-    print(f"✅ {len(imgs)} overview ({'mask' if args.masks else 'bbox'}) -> {out_dir}")
-    print("   Warna: Impacted=biru, Caries=cyan, Periapical=kuning, Deep Caries=hijau")
+    print(f"OK: {len(imgs)} overview ({'mask' if args.masks else 'bbox'}) -> {out_dir}")
+    print("   Colours: Impacted=blue, Caries=cyan, Periapical=yellow, Deep Caries=green")
 
 
 if __name__ == "__main__":
@@ -102,8 +102,8 @@ if __name__ == "__main__":
     ap.add_argument("--drive", default="/content/drive/MyDrive/opg-live")
     ap.add_argument("--yolo_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/yolov8_dentex.pt")
     ap.add_argument("--images_dir", default="/content/yolo/images/val")
-    ap.add_argument("--masks", action="store_true", help="overlay SAM mask per lesi")
-    ap.add_argument("--enum_ckpt", default="", help="detektor gigi -> tampilkan FDI di label")
+    ap.add_argument("--masks", action="store_true", help="overlay SAM mask per lesion")
+    ap.add_argument("--enum_ckpt", default="", help="tooth detector -> show FDI in label")
     ap.add_argument("--sam_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/sam_vit_h_4b8939.pth")
     ap.add_argument("--adapter", default="/content/drive/MyDrive/opg-live/checkpoints/adapter_best.pth")
     ap.add_argument("--conf", type=float, default=0.3)

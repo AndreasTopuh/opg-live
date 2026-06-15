@@ -1,11 +1,11 @@
 """
-Stage 3 orchestrator: untuk tiap deteksi × 3 arm -> RAG retrieve -> GPT-4o (OpenRouter)
--> parse L-F-V -> metrik HR/GS/CTC. Simpan results.jsonl ke Drive.
+Stage 3 orchestrator: for each detection × 3 arms -> RAG retrieve -> GPT-4o (OpenRouter)
+-> parse L-F-V -> HR/GS/CTC metrics. Save results.jsonl to Drive.
 
-RAG chunks DI-RETRIEVE SEKALI per deteksi dan dipakai ulang di 3 arm (held constant,
-§4.3). Hanya spatial referent (arm) yang berubah.
+RAG chunks are RETRIEVED ONCE per detection and reused across the 3 arms (held
+constant, §4.3). Only the spatial referent (arm) changes.
 
-Pakai --limit untuk tes murah dulu (mis. --limit 3 = 9 panggilan GPT-4o) sebelum full.
+Use --limit for a cheap test first (e.g. --limit 3 = 9 GPT-4o calls) before the full run.
 """
 import argparse
 import json
@@ -25,7 +25,7 @@ def run(args):
     manifest = [json.loads(l) for l in open(f"{art_dir}/manifest.jsonl")]
     if args.limit:
         manifest = manifest[: args.limit]
-    print(f"Deteksi: {len(manifest)} × {len(ARMS)} arm = {len(manifest)*len(ARMS)} panggilan GPT-4o")
+    print(f"Detections: {len(manifest)} × {len(ARMS)} arms = {len(manifest)*len(ARMS)} GPT-4o calls")
 
     retr = Retriever(args.kb)
     kb = kb_by_id(retr.chunks)
@@ -40,7 +40,7 @@ def run(args):
         disease = m["pred_cls_name"]
         fdi = m.get("target_fdi")
         mask_id = m["det_id"]
-        # RAG sekali per deteksi (sama untuk 3 arm)
+        # RAG once per detection (same for all 3 arms)
         query = f"{disease} on panoramic dental radiograph: radiographic appearance and management"
         chunks = retr.search(query, k=args.k)
 
@@ -56,7 +56,8 @@ def run(args):
                 continue
 
             findings = (parsed or {}).get("findings", [])
-            met = explanation_metrics(findings, kb, mask_id, target_fdi=fdi, hr_thr=args.hr_thr)
+            met = explanation_metrics(findings, kb, mask_id, target_fdi=fdi,
+                                      hr_thr=args.hr_thr, disease=disease)
             fout.write(json.dumps({
                 "det_id": m["det_id"],
                 "arm": arm,
@@ -72,10 +73,10 @@ def run(args):
             fout.flush()
             n_done += 1
         if (mi + 1) % 10 == 0:
-            print(f"  {mi+1}/{len(manifest)} deteksi selesai")
+            print(f"  {mi+1}/{len(manifest)} detections done")
 
     fout.close()
-    print(f"\n✅ {n_done} hasil ({n_fail} gagal) -> {out_path}")
+    print(f"\nOK: {n_done} results ({n_fail} failed) -> {out_path}")
 
 
 if __name__ == "__main__":
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     ap.add_argument("--drive", default="/content/drive/MyDrive/opg-live")
     ap.add_argument("--kb", default="/content/opg-live/data/kb")
     ap.add_argument("--model", default="openai/gpt-4o")
-    ap.add_argument("--k", type=int, default=4)          # top-k chunk RAG
+    ap.add_argument("--k", type=int, default=4)            # top-k RAG chunks
     ap.add_argument("--hr_thr", type=float, default=0.35)  # lexical support threshold
-    ap.add_argument("--limit", type=int, default=0)       # 0 = semua
+    ap.add_argument("--limit", type=int, default=0)        # 0 = all
     run(ap.parse_args())

@@ -1,12 +1,12 @@
 """
-Training loop Medical SAM Adapter di DENTEX lesion (Stage 2).
+Training loop for the Medical SAM Adapter on DENTEX lesions (Stage 2).
 
 Recipe (Wu et al., 2025): box prompt -> mask. Loss = Dice + BCE.
-Checkpoint adapter (kecil, ~20-50MB) DISIMPAN KE DRIVE supaya aman dari
-reset Colab. Jalankan via notebooks/01_sam_adapter_train.ipynb.
+The adapter checkpoint (small, ~20-50MB) is SAVED TO DRIVE to survive Colab
+resets. Run via notebooks/01_sam_adapter_train.ipynb.
 
-Catatan compute: SAM ViT-H image encoder berat -> batch kecil (1-2) di T4,
-gunakan gradient accumulation. Per-kelas Dice dilaporkan (penting untuk H4
+Compute note: the SAM ViT-H image encoder is heavy -> small batch (1-2) on T4,
+use gradient accumulation. Per-class Dice is reported (important for H4,
 periapical n=158).
 """
 import argparse
@@ -52,14 +52,14 @@ def dice_score(logits, gt, thr=0.5):
 
 
 def run_image_encoder(sam, batch, device):
-    """SAM image encoder (adapter di dalam -> dapat gradient). Output feats.
-    image_1024 sudah ter-normalisasi + pad ke 1024x1024 di dataset."""
+    """SAM image encoder (adapter inside -> receives gradient). Returns feats.
+    image_1024 is already normalised + padded to 1024x1024 in the dataset."""
     return sam.image_encoder(batch["image_1024"].to(device))
 
 
 def decode_masks(sam, feats, boxes, device):
-    """SAM mask_decoder TIDAK bisa batch gambar (internal repeat_interleave by
-    num_prompts). Jadi decode per-gambar (decoder murah), encoder tetap batch."""
+    """SAM mask_decoder CANNOT batch over images (internal repeat_interleave by
+    num_prompts). So decode per-image (decoder is cheap); encoder stays batched."""
     boxes = boxes.to(device)
     image_pe = sam.prompt_encoder.get_dense_pe()
     outs = []
@@ -92,8 +92,8 @@ def train(args):
                     num_workers=2, collate_fn=lambda b: b)
 
     sam = sam_model_registry["vit_h"](checkpoint=args.sam_ckpt)
-    inject_adapters(sam)      # tambah adapter SEBELUM pindah device
-    sam.to(device)            # pindahkan semua (base + adapter) ke GPU
+    inject_adapters(sam)      # add adapters BEFORE moving to device
+    sam.to(device)            # move everything (base + adapters) to GPU
     trainable_report(sam)
 
     opt = torch.optim.AdamW(
@@ -101,14 +101,14 @@ def train(args):
     )
     os.makedirs(f"{args.drive}/checkpoints", exist_ok=True)
     best = 0.0
-    scaler = torch.amp.GradScaler("cuda")  # mixed precision -> hemat VRAM + cepat
+    scaler = torch.amp.GradScaler("cuda")  # mixed precision -> saves VRAM + faster
 
     for ep in range(args.epochs):
         sam.train()
         run_loss, steps = 0.0, 0
         opt.zero_grad()
         for bi, samples in enumerate(tr):
-            # collate manual (batch=list of dict) — proses per-sample lalu stack
+            # manual collate (batch=list of dict) — process per-sample then stack
             boxes = torch.stack([s["box"] for s in samples])[:, None, :]  # B x 1 x 4
             gts = torch.stack([s["gt_mask"] for s in samples])[:, None].to(device)
             batch = {"image_1024": torch.stack([s["image_1024"] for s in samples])}
@@ -127,7 +127,7 @@ def train(args):
             if bi % 50 == 0:
                 print(f"  ep{ep} step{bi}/{len(tr)} loss {run_loss/steps:.4f}")
 
-        # ---- validasi: Dice global + per-kelas ----
+        # ---- validation: global Dice + per-class ----
         sam.eval()
         per_cls = defaultdict(list)
         with torch.no_grad(), torch.amp.autocast("cuda", dtype=torch.float16):
@@ -145,12 +145,12 @@ def train(args):
         for c in sorted(per_cls):
             print(f"    {CLASS_NAMES[c]:20s} Dice {np.mean(per_cls[c]):.4f} (n={len(per_cls[c])})")
 
-        # ---- checkpoint terbaik -> Drive ----
+        # ---- best checkpoint -> Drive ----
         if mdice > best:
             best = mdice
             path = f"{args.drive}/checkpoints/adapter_best.pth"
             torch.save({"state": adapter_state_dict(sam), "dice": best, "epoch": ep}, path)
-            print(f"    ✅ saved {path} (Dice {best:.4f})")
+            print(f"    OK: saved {path} (Dice {best:.4f})")
 
     print(f"Done. Best val Dice {best:.4f}")
 

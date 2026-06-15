@@ -1,14 +1,15 @@
 """
-Assign FDI ke deteksi penyakit lewat detektor gigi (enumeration YOLO).
+Assign FDI to disease detections via the tooth detector (enumeration YOLO).
 
-Tiap deteksi penyakit (box) -> cari box GIGI yang paling 'memuat' box penyakit
-(containment, bukan IoU — karena lesi kecil di dalam gigi besar). Ambil FDI gigi itu.
-Hasil: Stage 1 = bbox + FDI + diagnosis (prediksi penuh, tanpa GT).
+For each disease detection (box) -> find the TOOTH box that best 'contains' the
+disease box (containment, not IoU — a small lesion sits inside a large tooth).
+Take that tooth's FDI. Result: Stage 1 = bbox + FDI + diagnosis (full prediction,
+no GT).
 """
 
 
 def containment(inner, outer):
-    """Berapa fraksi 'inner' (box penyakit) yang berada di dalam 'outer' (box gigi)."""
+    """Fraction of 'inner' (disease box) that lies inside 'outer' (tooth box)."""
     x0 = max(inner[0], outer[0]); y0 = max(inner[1], outer[1])
     x1 = min(inner[2], outer[2]); y1 = min(inner[3], outer[3])
     inter = max(0, x1 - x0) * max(0, y1 - y0)
@@ -17,7 +18,7 @@ def containment(inner, outer):
 
 
 class EnumFDI:
-    """Wrapper detektor gigi YOLO. Prediksi semua gigi + FDI per gambar."""
+    """Tooth-detector YOLO wrapper. Predicts all teeth + FDI per image."""
 
     def __init__(self, ckpt, imgsz=1024, conf=0.3):
         from ultralytics import YOLO
@@ -37,7 +38,7 @@ class EnumFDI:
 
     @staticmethod
     def assign(disease_box, teeth, min_contain=0.4):
-        """FDI gigi yang paling memuat box penyakit (containment >= min_contain)."""
+        """FDI of the tooth that best contains the disease box (containment >= min_contain)."""
         best_c, best_fdi = 0.0, None
         for tbox, fdi, _ in teeth:
             c = containment(disease_box, tbox)

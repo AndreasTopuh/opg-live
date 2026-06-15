@@ -1,14 +1,14 @@
 """
-Konversi DENTEX enumeration (quadrant + tooth) -> format YOLOv8 32-kelas FDI.
+Convert DENTEX enumeration (quadrant + tooth) -> YOLOv8 32-class FDI format.
 
-Untuk detektor GIGI (Stage 1 FDI): tiap gigi punya FDI 2-digit = kuadran+nomor.
-  category_id_1 (kuadran, id 0-3 -> nama 1-4)
-  category_id_2 (gigi,    id 0-7 -> nama 1-8)
-  class YOLO = cat1_id*8 + cat2_id  (0-31)
-  FDI name   = f"{kuadran}{gigi}"   (11..18, 21..28, 31..38, 41..48)
+For the TOOTH detector (Stage 1 FDI): each tooth has a 2-digit FDI = quadrant+number.
+  category_id_1 (quadrant, id 0-3 -> name 1-4)
+  category_id_2 (tooth,    id 0-7 -> name 1-8)
+  YOLO class = cat1_id*8 + cat2_id  (0-31)
+  FDI name   = f"{quadrant}{tooth}"  (11..18, 21..28, 31..38, 41..48)
 
-Detektor ini dipakai untuk assign FDI ke deteksi penyakit (lewat overlap),
-sehingga Stage 1 = bbox + FDI + diagnosis (prediksi penuh, tanpa GT).
+This detector is used to assign FDI to disease detections (via overlap), so
+Stage 1 = bbox + FDI + diagnosis (full prediction, no GT).
 
 Output: /content/yolo_enum/{images,labels}/{train,val} + dentex_enum.yaml
 """
@@ -32,8 +32,8 @@ def convert(args):
     xr = os.path.join(os.path.dirname(js), "xrays")
     d = json.load(open(js))
 
-    c1 = {c["id"]: c["name"] for c in d["categories_1"]}   # kuadran
-    c2 = {c["id"]: c["name"] for c in d["categories_2"]}   # gigi
+    c1 = {c["id"]: c["name"] for c in d["categories_1"]}   # quadrant
+    c2 = {c["id"]: c["name"] for c in d["categories_2"]}   # tooth
     # class id 0-31 -> FDI name
     names = {}
     for q in sorted(c1):
@@ -50,7 +50,7 @@ def convert(args):
     rng.shuffle(img_ids)
     n_val = int(len(img_ids) * args.val_frac)
     splits = {"val": set(img_ids[:n_val]), "train": set(img_ids[n_val:])}
-    print(f"Gambar: {len(img_ids)} | train {len(splits['train'])} | val {len(splits['val'])}")
+    print(f"Images: {len(img_ids)} | train {len(splits['train'])} | val {len(splits['val'])}")
 
     for sp in ["train", "val"]:
         os.makedirs(f"{args.out}/images/{sp}", exist_ok=True)
@@ -83,7 +83,7 @@ def convert(args):
         f.write("names:\n")
         for k in sorted(names):
             f.write(f"  {k}: '{names[k]}'\n")
-    print(f"✅ {n_box} gigi ditulis, 32 kelas FDI. YAML: {args.out}/dentex_enum.yaml")
+    print(f"OK: {n_box} teeth written, 32 FDI classes. YAML: {args.out}/dentex_enum.yaml")
 
 
 if __name__ == "__main__":

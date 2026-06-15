@@ -1,8 +1,8 @@
 """
-Embed knowledge base (~28 chunk manual) dengan BGE-M3 -> kb_embeddings.npy.
+Embed the knowledge base (~28 manual chunks) with BGE-M3 -> kb_embeddings.npy.
 
-"Cara 2" RAG: KB manual, BGE-M3 embeddings, NumPy cosine (no FAISS, no auto-chunk).
-Jalankan sekali (di Colab GPU, cepat). Output dipakai retriever.py.
+RAG "approach 2": manual KB, BGE-M3 embeddings, NumPy cosine (no FAISS, no
+auto-chunking). Run once (on Colab GPU, fast). Output is used by retriever.py.
 """
 import argparse
 import json
@@ -26,7 +26,7 @@ def run(args):
     np.save(f"{out_dir}/kb_embeddings.npy", emb)
     with open(f"{out_dir}/kb_meta.json", "w", encoding="utf-8") as f:
         json.dump(chunks, f, ensure_ascii=False, indent=2)
-    print(f"✅ embeddings {emb.shape} -> {out_dir}/kb_embeddings.npy")
+    print(f"OK: embeddings {emb.shape} -> {out_dir}/kb_embeddings.npy")
 
 
 if __name__ == "__main__":

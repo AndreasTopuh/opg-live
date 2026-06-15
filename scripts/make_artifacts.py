@@ -1,22 +1,22 @@
 """
-Generate 3-arm grounding artifacts untuk eksperimen faithfulness (Stage 1 -> 2 -> 3).
+Generate 3-arm grounding artifacts for the faithfulness experiment (Stage 1 -> 2 -> 3).
 
-Metodologi: "same diagnosis from Stage 1 feeds all arms" (draft §4.3). Untuk tiap
-DETEKSI Stage 1 (YOLOv8: bbox + diagnosis), bbox YANG SAMA dipakai untuk:
-  - bbox   : OPG + kotak
-  - mask   : OPG + overlay mask (SAM+adapter, box prompt = bbox YOLO)
-  - hybrid : OPG + kotak + mask
-Hanya spatial referent yang berubah -> perbandingan terkontrol.
+Methodology: "same diagnosis from Stage 1 feeds all arms" (draft §4.3). For each
+Stage-1 DETECTION (YOLOv8: bbox + diagnosis), the SAME bbox is used for:
+  - bbox   : OPG + box
+  - mask   : OPG + mask overlay (SAM+adapter, box prompt = YOLO bbox)
+  - hybrid : OPG + box + mask
+Only the spatial referent changes -> controlled comparison.
 
-Mode:
-  --mode yolo  (default) : deteksi prediksi YOLO Stage 1 (sesuai metodologi)
-  --mode gt              : deteksi GT DENTEX (untuk analisis sekunder/oracle)
+Modes:
+  --mode yolo  (default) : predicted YOLO Stage-1 detections (per methodology)
+  --mode gt              : GT DENTEX detections (secondary/oracle analysis)
 
 Output (Drive):
   outputs/artifacts/{bbox,mask,hybrid}/{det_id}.png
   outputs/artifacts/manifest.jsonl
     (det_id, img_file, pred_cls, pred_cls_name, conf, bbox, mask_area, sam_score,
-     matched_gt_cls, gt_iou, correct)   # field GT hanya untuk evaluasi, bukan input
+     matched_gt_cls, target_fdi, pred_fdi, gt_iou, correct)  # GT fields are for evaluation, not input
 """
 import argparse
 import glob
@@ -33,8 +33,8 @@ from dentex_dataset import CLASS_NAMES, load_records, sample_per_class
 from fdi_assign import EnumFDI
 from sam_adapter import inject_adapters, load_adapter_state
 
-BOX_COLOR = (0, 255, 0)      # hijau (BGR)
-MASK_COLOR = (0, 0, 255)     # merah (BGR)
+BOX_COLOR = (0, 255, 0)      # green (BGR)
+MASK_COLOR = (0, 0, 255)     # red (BGR)
 ALPHA = 0.45
 
 
@@ -62,17 +62,17 @@ def iou_xyxy(a, b):
 
 
 def build_gt_index(disease_json):
-    """file_name -> list of (bbox_xyxy, cls3, fdi). Untuk matching evaluasi + FDI target."""
+    """file_name -> list of (bbox_xyxy, cls3, fdi). For eval matching + target FDI."""
     d = json.load(open(disease_json))
     id2file = {im["id"]: im["file_name"] for im in d["images"]}
-    cat1 = {c["id"]: str(c["name"]) for c in d.get("categories_1", [])}  # kuadran
-    cat2 = {c["id"]: str(c["name"]) for c in d.get("categories_2", [])}  # nomor gigi
+    cat1 = {c["id"]: str(c["name"]) for c in d.get("categories_1", [])}  # quadrant
+    cat2 = {c["id"]: str(c["name"]) for c in d.get("categories_2", [])}  # tooth number
     by_file = defaultdict(list)
     for a in d["annotations"]:
         x, y, w, h = a["bbox"]
         q = cat1.get(a.get("category_id_1"), "")
         t = cat2.get(a.get("category_id_2"), "")
-        fdi = f"{q}{t}" if q and t else None       # FDI dua-digit, mis. "36"
+        fdi = f"{q}{t}" if q and t else None       # two-digit FDI, e.g. "36"
         by_file[id2file[a["image_id"]]].append(([x, y, x + w, y + h], a["category_id_3"], fdi))
     return by_file
 
@@ -95,12 +95,12 @@ def yolo_detections(yolo_ckpt, images_dir, conf, imgsz):
                 "pred_cls": int(b.cls),
                 "conf": float(b.conf),
             })
-    print(f"YOLO: {len(dets)} deteksi dari {len(imgs)} gambar (conf>{conf})")
+    print(f"YOLO: {len(dets)} detections from {len(imgs)} images (conf>{conf})")
     return dets
 
 
 def gt_detections(disease_json, xrays_dir, n_per_class, seed):
-    """Mode oracle: pakai lesi GT sebagai 'deteksi'."""
+    """Oracle mode: use GT lesions as 'detections'."""
     recs = sample_per_class(load_records(disease_json, xrays_dir), n_per_class, seed)
     dets = []
     for r in recs:
@@ -157,9 +157,9 @@ def run(args):
         dets = sample_dets_per_class(dets, args.n_per_class, args.seed)
     else:
         dets = gt_detections(js, xr, args.n_per_class, args.seed)
-    print(f"Eval set: {len(dets)} deteksi ({args.n_per_class}/kelas, mode={args.mode})")
+    print(f"Eval set: {len(dets)} detections ({args.n_per_class}/class, mode={args.mode})")
 
-    gt_idx = build_gt_index(js)   # untuk matching evaluasi
+    gt_idx = build_gt_index(js)   # for eval matching
 
     out_dir = f"{args.drive}/outputs/artifacts"
     for arm in ["bbox", "mask", "hybrid"]:
@@ -168,7 +168,7 @@ def run(args):
     predictor = load_sam(args.sam_ckpt, args.adapter, device)
     enum = EnumFDI(args.enum_ckpt, args.imgsz, args.conf) if args.enum_ckpt else None
     if enum:
-        print("Enumeration YOLO aktif -> FDI diprediksi (pred_fdi)")
+        print("Enumeration YOLO active -> FDI predicted (pred_fdi)")
 
     by_img = defaultdict(list)
     for dct in dets:
@@ -193,15 +193,15 @@ def run(args):
             for arm, im in arts.items():
                 cv2.imwrite(f"{out_dir}/{arm}/{dct['det_id']}.png", im)
 
-            # match ke GT (IoU>=0.5) -> diagnosis Stage 1 benar/tidak + FDI target
+            # match to GT (IoU>=0.5) -> is Stage-1 diagnosis correct? + target FDI
             gt_cls, gt_fdi, gt_iou = None, None, 0.0
             for gb, gc, gf in gt_idx.get(dct["img_file"], []):
                 i = iou_xyxy(dct["bbox_xyxy"], gb)
                 if i > gt_iou:
                     gt_iou, gt_cls, gt_fdi = i, gc, gf
             matched = gt_cls if gt_iou >= 0.5 else None
-            target_fdi = gt_fdi if gt_iou >= 0.5 else None   # FDI bersih utk prompt eksperimen
-            pred_fdi = EnumFDI.assign(dct["bbox_xyxy"], teeth) if enum else None  # FDI prediksi (deployment)
+            target_fdi = gt_fdi if gt_iou >= 0.5 else None   # clean FDI for the experiment prompt
+            pred_fdi = EnumFDI.assign(dct["bbox_xyxy"], teeth) if enum else None  # predicted FDI (deployment)
 
             manifest.append({
                 "det_id": dct["det_id"],
@@ -229,10 +229,10 @@ def run(args):
     for m in manifest:
         per[m["pred_cls_name"]] += 1
     n_correct = sum(m["correct"] for m in manifest)
-    print(f"\n✅ {len(manifest)} deteksi × 3 arm -> {out_dir}")
-    print(f"   per kelas (pred): {dict(per)}")
+    print(f"\nOK: {len(manifest)} detections x 3 arms -> {out_dir}")
+    print(f"   per class (pred): {dict(per)}")
     if args.mode == "yolo":
-        print(f"   diagnosis benar (match GT): {n_correct}/{len(manifest)} "
+        print(f"   correct diagnosis (match GT): {n_correct}/{len(manifest)} "
               f"({100*n_correct/max(1,len(manifest)):.1f}%)")
 
 
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     ap.add_argument("--drive", default="/content/drive/MyDrive/opg-live")
     ap.add_argument("--mode", choices=["yolo", "gt"], default="yolo")
     ap.add_argument("--yolo_ckpt", default="/content/drive/MyDrive/opg-live/checkpoints/yolov8_dentex.pt")
-    ap.add_argument("--enum_ckpt", default="", help="detektor gigi (FDI). Kosong = FDI dari GT-match saja")
+    ap.add_argument("--enum_ckpt", default="", help="tooth detector (FDI). Empty = FDI from GT-match only")
     ap.add_argument("--images_dir", default="/content/yolo/images/val")  # held-out
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--imgsz", type=int, default=1024)

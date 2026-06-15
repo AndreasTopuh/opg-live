@@ -1,19 +1,19 @@
 """
-Konversi DENTEX disease (COCO hierarkis) -> format YOLOv8 untuk Stage 1 detection.
+Convert DENTEX disease (hierarchical COCO) -> YOLOv8 format for Stage 1 detection.
 
-Stage 1 = detektor YOLO (4 kelas penyakit), selaras dengan pendekatan supervisor
-pada panoramic radiograph (Veerabhadrappa & Vengusamy, 2025, pakai YOLOv7),
-diperbarui ke YOLOv8. Plan B resmi di roadmap (Detectron2/HierarchicalDet weights
-tidak dirilis publik).
+Stage 1 = YOLO detector (4 disease classes), consistent with the supervisor's
+panoramic-radiograph approach (Veerabhadrappa & Vengusamy, 2025, YOLOv7),
+updated to YOLOv8. Official Plan B in the roadmap (HierarchicalDet/Detectron2
+weights were never publicly released).
 
-Output struktur (default di /content untuk kecepatan; weights nanti -> Drive):
+Output structure (default under /content for speed; weights later -> Drive):
   yolo/
     images/{train,val}/*.png
-    labels/{train,val}/*.txt    # tiap baris: "cls cx cy w h" (ternormalisasi 0-1)
+    labels/{train,val}/*.txt    # each line: "cls cx cy w h" (normalised 0-1)
     dentex.yaml
 
-Kelas (category_id_3 dipertahankan): 0 Impacted, 1 Caries, 2 Periapical, 3 Deep Caries
-Split per-GAMBAR (bukan per-lesi) supaya tidak ada kebocoran lesi antar split.
+Classes (category_id_3 kept): 0 Impacted, 1 Caries, 2 Periapical, 3 Deep Caries
+Split per-IMAGE (not per-lesion) to avoid lesion leakage across splits.
 """
 import argparse
 import glob
@@ -37,13 +37,13 @@ def convert(args):
     for a in d["annotations"]:
         anns_by_img[a["image_id"]].append(a)
 
-    # split per-gambar (deterministik)
+    # split per-image (deterministic)
     img_ids = sorted(anns_by_img.keys())
     rng = np.random.default_rng(args.seed)
     rng.shuffle(img_ids)
     n_val = int(len(img_ids) * args.val_frac)
     splits = {"val": set(img_ids[:n_val]), "train": set(img_ids[n_val:])}
-    print(f"Gambar: {len(img_ids)} | train {len(splits['train'])} | val {len(splits['val'])}")
+    print(f"Images: {len(img_ids)} | train {len(splits['train'])} | val {len(splits['val'])}")
 
     for sp in ["train", "val"]:
         os.makedirs(f"{args.out}/images/{sp}", exist_ok=True)
@@ -77,13 +77,13 @@ def convert(args):
         f.write("names:\n")
         for k in sorted(CLASS_NAMES):
             f.write(f"  {k}: {CLASS_NAMES[k]}\n")
-    print(f"✅ {n_box} bbox ditulis. Dataset YAML: {yaml_path}")
+    print(f"OK: {n_box} boxes written. Dataset YAML: {yaml_path}")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--drive", default="/content/drive/MyDrive/opg-live")
-    ap.add_argument("--out", default="/content/yolo")  # lokal Colab = cepat
+    ap.add_argument("--out", default="/content/yolo")  # local Colab = fast
     ap.add_argument("--val_frac", type=float, default=0.15)
     ap.add_argument("--seed", type=int, default=42)
     convert(ap.parse_args())

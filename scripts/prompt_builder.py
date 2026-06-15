@@ -1,13 +1,13 @@
 """
-Bangun prompt 3-arm + skema L-F-V (Location-Field-Value) untuk GPT-4o.
+Build the 3-arm prompt + L-F-V (Location-Field-Value) schema for GPT-4o.
 
-3 arm beda HANYA pada deskripsi spatial referent (single-variable, §4.3):
-  bbox   : kotak hijau
-  mask   : overlay mask merah
-  hybrid : keduanya
-Diagnosis (kelas), FDI, dan chunk RAG IDENTIK lintas arm (held constant).
+The 3 arms differ ONLY in the spatial-referent description (single variable, §4.3):
+  bbox   : green box
+  mask   : red mask overlay
+  hybrid : both
+The diagnosis (class), FDI, and RAG chunks are IDENTICAL across arms (held constant).
 
-Output GPT-4o dipaksa JSON L-F-V dengan mask_id + citations (untuk metrik GS/HR).
+GPT-4o output is forced to L-F-V JSON with mask_id + citations (for GS/HR metrics).
 """
 
 ARM_DESC = {
@@ -21,7 +21,7 @@ def build_prompt(arm, disease, fdi, chunks, mask_id):
     kb = "\n".join(f"[{c['id']}] {c['text']} (Source: {c['source']})" for c in chunks)
     fdi_txt = f"tooth FDI {fdi}" if fdi else "the indicated tooth"
     cite_ids = ", ".join(c["id"] for c in chunks)
-    return f"""You are a dental radiology decision-support assistant explaining ONE finding on a panoramic radiograph (OPG). Your explanation must be faithful: state only what is supported by the indicated region and the knowledge base.
+    return f"""You are a dental radiology decision-support assistant explaining a finding on a panoramic radiograph (OPG). Base your explanation on what the indicated region shows and on what the knowledge base supports.
 
 SPATIAL GROUNDING: {ARM_DESC[arm]}
 DETECTOR OUTPUT (Stage 1): condition = "{disease}" on {fdi_txt}.
@@ -29,10 +29,10 @@ DETECTOR OUTPUT (Stage 1): condition = "{disease}" on {fdi_txt}.
 KNOWLEDGE BASE (cite findings by these ids only):
 {kb}
 
-RULES:
-1. Describe ONLY the lesion within the indicated spatial referent. Do NOT describe other teeth, other regions, or features outside the indicated lesion.
+GUIDELINES:
+1. Explain the finding indicated by the spatial referent, grounded in the visible region and the knowledge base.
 2. Every finding MUST set "mask_id" to "{mask_id}" and include at least one "citations" id from: {cite_ids}.
-3. Be concise and clinically accurate. If unsure, lower the confidence.
+3. Be concise and clinically accurate; lower the confidence if uncertain.
 
 Return ONLY valid JSON (no prose) in this schema:
 {{"findings": [

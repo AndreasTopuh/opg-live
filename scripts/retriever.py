@@ -1,6 +1,6 @@
 """
-Retriever RAG: cosine similarity (NumPy) top-k chunk untuk sebuah query.
-KB kecil (~28) -> brute-force cosine sudah optimal, tidak perlu FAISS.
+RAG retriever: cosine similarity (NumPy) top-k chunks for a query.
+KB is small (~28) -> brute-force cosine is already optimal, no FAISS needed.
 """
 import json
 import os
@@ -10,7 +10,7 @@ import numpy as np
 
 class Retriever:
     def __init__(self, kb_dir):
-        self.emb = np.load(f"{kb_dir}/kb_embeddings.npy")          # N x d (sudah normalized)
+        self.emb = np.load(f"{kb_dir}/kb_embeddings.npy")          # N x d (already normalized)
         self.chunks = json.load(open(f"{kb_dir}/kb_meta.json", encoding="utf-8"))
         self._model = None
 
@@ -23,9 +23,9 @@ class Retriever:
         return np.asarray(q, dtype=np.float32)[0]
 
     def search(self, query, k=4, disease=None):
-        """Top-k chunk. Kalau disease diberikan, prioritaskan chunk kelas itu + general."""
+        """Top-k chunks. If disease is given, prioritise that class + general."""
         q = self._encode(query)
-        sims = self.emb @ q                                        # cosine (vektor normalized)
+        sims = self.emb @ q                                        # cosine (normalized vectors)
         order = np.argsort(-sims)
         out = []
         for i in order:

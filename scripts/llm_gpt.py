@@ -1,8 +1,8 @@
 """
-GPT-4o via OpenRouter (vision). Kirim artifact image + prompt -> JSON L-F-V.
+GPT-4o via OpenRouter (vision). Send the artifact image + prompt -> L-F-V JSON.
 
-Key di env OPENROUTER_API_KEY. Model 'openai/gpt-4o'. JSON dipaksa via
-response_format. temperature rendah untuk konsistensi metrik.
+Key in env OPENROUTER_API_KEY. Model 'openai/gpt-4o'. JSON is forced via
+response_format. Low temperature for metric consistency.
 """
 import base64
 import json
@@ -24,7 +24,7 @@ def _data_url(path):
 
 
 def explain(client, prompt, image_path, model="openai/gpt-4o", max_tokens=900):
-    """Return (parsed_dict, raw_text). parsed_dict None kalau JSON gagal."""
+    """Return (parsed_dict, raw_text). parsed_dict is None if JSON parsing fails."""
     r = client.chat.completions.create(
         model=model,
         messages=[{
