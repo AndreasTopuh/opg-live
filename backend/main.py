@@ -35,13 +35,19 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 if os.path.isdir(os.path.join(DIST, "assets")):
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
-_pipe = None  # lazy-loaded on first request (so the server starts instantly)
+import threading
+
+_pipe = None          # lazy-loaded on first request (server starts instantly)
+_pipe_lock = threading.Lock()
 
 
 def pipe():
     global _pipe
-    if _pipe is None:
-        _pipe = OPGPipeline(DRIVE)
+    # lock so concurrent uploads during the slow first load don't trigger
+    # multiple model loads (which would OOM / crash).
+    with _pipe_lock:
+        if _pipe is None:
+            _pipe = OPGPipeline(DRIVE)
     return _pipe
 
 
