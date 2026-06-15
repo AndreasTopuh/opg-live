@@ -35,7 +35,8 @@ def explain(client, prompt, image_path, model="openai/gpt-4o", max_tokens=900):
             ],
         }],
         max_tokens=max_tokens,
-        temperature=0.2,
+        temperature=0,   # deterministic-ish -> reproducible metrics across re-runs
+        seed=42,
         response_format={"type": "json_object"},
     )
     raw = r.choices[0].message.content
