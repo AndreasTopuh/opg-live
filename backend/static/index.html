@@ -74,6 +74,9 @@
   .tbox:hover .tag,.tbox.sel .tag{display:block}
   #zoomctl{position:absolute;top:10px;right:10px;display:none;flex-direction:column;gap:7px;z-index:6}
   #zoomctl button{width:36px;height:36px;padding:0;font-size:17px;line-height:1;background:#fffffff2;border:1px solid var(--line);border-radius:9px;box-shadow:0 1px 5px #0003}
+  #stagewrap.full{position:fixed;inset:0;z-index:60;background:#000;border-radius:0}
+  #stagewrap.full #stage{height:100vh;min-height:100vh;border-radius:0;border:none}
+  #stagewrap.full #zoomctl{top:16px;right:16px}
   #rmark{position:absolute;left:12px;bottom:10px;color:#fff;font-weight:700;font-size:13px;z-index:4;text-shadow:0 1px 3px #000}
 
   /* numbering chart */
@@ -213,6 +216,7 @@
               <button onclick="zoomBy(1.25)" title="Zoom in">＋</button>
               <button onclick="zoomBy(0.8)" title="Zoom out">－</button>
               <button onclick="resetZoom()" title="Reset">⟲</button>
+              <button onclick="toggleFull()" title="Fokus / Fullscreen (Esc keluar)">⛶</button>
             </div>
           </div>
           <p class="sub" id="hint" style="margin:8px 0 0"></p>
@@ -286,7 +290,8 @@ function renderFileCard(){
     <div class="sub">${kb}</div></div><span class="ok">✓</span></div>`;
 }
 
-function count(dis){ return (D.findings||[]).filter(f=>f.disease===dis).length; }
+// count by TOOTH (matches the numbering chart), not by lesion
+function count(dis){ return (D.teeth||[]).filter(t=>t.has_disease && t.disease===dis).length; }
 
 function renderFindings(){
   const rows = [
@@ -303,10 +308,10 @@ function renderFindings(){
   $("#findings").innerHTML = rows +
     `<div class="frow"><i class="dot" style="background:#cbd5c0"></i>Gigi Sehat<b>${healthy}</b></div>`;
 }
-// click a Temuan-AI class row -> open + auto-zoom the first lesion of that class
+// click a Temuan-AI class row -> open + auto-zoom the first tooth of that class
 function jumpToClass(dis){
-  const f = (D.findings||[]).find(x=>x.disease===dis);
-  if(f) clickDisease(f.idx);
+  const t = (D.teeth||[]).find(x=>x.has_disease && x.disease===dis);
+  if(t) clickDisease(t.det_idx);
 }
 
 function renderStats(){
@@ -336,7 +341,7 @@ function renderChart(){
 
 /* ---------- view modes ---------- */
 let MODE = "overview";
-function resetView(){ setMode("overview"); }
+function resetView(){ _zs=1; _ztx=0; _zty=0; setMode("overview"); }   // new upload = fit
 function setMode(m){
   MODE = m;
   $("#toolbar").style.display = "flex";
@@ -350,7 +355,7 @@ function setMode(m){
     $("#vtitle").textContent = "2 · Per Tooth — klik gigi";
     $("#hint").textContent = "Klik gigi → SAM mask + metrik. Scroll = zoom, klik-kanan + geser = pan.";
     $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${D.views.raw}"><div id="masklayer"></div>${toothBoxes()}</div>`;
-    resetZoom(); return;
+    _applyZoom(); return;   // keep current zoom/pan across mode switches
   }
   const v = D.views;
   const src = {overview:v.overview, bbox:v.bbox, mask:v.mask, hybrid:v.hybrid, hide:v.raw}[m];
@@ -360,7 +365,7 @@ function setMode(m){
   $("#hint").textContent = (m==="hide" ? "Overlay disembunyikan." : "Render seluruh lesi.") +
     " Scroll = zoom, klik-kanan + geser = pan.";
   $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${src}"></div>`;
-  resetZoom();
+  _applyZoom();   // keep current zoom/pan across mode switches
 }
 function toothBoxes(){
   const pct = (val,t)=>(val/t*100)+"%";
@@ -388,6 +393,7 @@ function _zoomAt(cx,cy,f){
   _ztx=cx-((cx-_ztx)/_zs)*ns; _zty=cy-((cy-_zty)/_zs)*ns; _zs=ns; _applyZoom();
 }
 function zoomBy(f){const st=$("#stage");_zoomAt(st.clientWidth/2,st.clientHeight/2,f);}
+function toggleFull(){ $("#stagewrap").classList.toggle("full"); setTimeout(resetZoom,30); }   // refit to new size
 // auto-zoom/pan so a lesion bbox (image px) is framed and centred
 function zoomToBox(box){
   const st=$("#stage"); if(!$("#zoomwrap")||!box||!D) return;
@@ -407,7 +413,7 @@ function initZoom(){
   let down=false,btn=0,sx=0,sy=0,moved=false;
   st.addEventListener("pointerdown",e=>{
     if(!$("#zoomwrap"))return; down=true; btn=e.button; moved=false; sx=e.clientX; sy=e.clientY;
-    st.classList.add("grabbing"); st.setPointerCapture&&st.setPointerCapture(e.pointerId);
+    st.classList.add("grabbing");   // no pointer-capture: it would steal tooth clicks
   });
   st.addEventListener("pointermove",e=>{
     if(!down)return; const dx=e.clientX-sx,dy=e.clientY-sy;
@@ -417,6 +423,9 @@ function initZoom(){
     if(moved||btn===2){_suppressClick=true; setTimeout(()=>{_suppressClick=false;},60);} };
   st.addEventListener("pointerup",end);
   st.addEventListener("pointerleave",end);
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape" && $("#stagewrap").classList.contains("full")){ $("#stagewrap").classList.remove("full"); setTimeout(resetZoom,30); }
+  });
 }
 
 /* ---------- tooth detail ---------- */
