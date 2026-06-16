@@ -419,19 +419,42 @@ function initZoom(){
     if(!$("#zoomwrap"))return; e.preventDefault();
     const r=st.getBoundingClientRect(); _zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.15:0.87);
   },{passive:false});
-  let down=false,btn=0,sx=0,sy=0,moved=false;
+
+  // unified mouse + touch: 1 pointer = pan, 2 pointers = pinch-zoom, tap = click
+  const pts = new Map();
+  let pinch = 0, moved = false, btn = 0;
   st.addEventListener("pointerdown",e=>{
-    if(!$("#zoomwrap"))return; down=true; btn=e.button; moved=false; sx=e.clientX; sy=e.clientY;
-    st.classList.add("grabbing");   // no pointer-capture: it would steal tooth clicks
+    if(!$("#zoomwrap"))return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); btn=e.button;
+    if(pts.size===1) moved=false;
+    if(pts.size===2){ const [a,b]=[...pts.values()]; pinch=Math.hypot(a.x-b.x,a.y-b.y); }
+    st.classList.add("grabbing");
   });
   st.addEventListener("pointermove",e=>{
-    if(!down)return; const dx=e.clientX-sx,dy=e.clientY-sy;
-    if(moved||Math.abs(dx)+Math.abs(dy)>4){moved=true;_ztx+=dx;_zty+=dy;sx=e.clientX;sy=e.clientY;_applyZoom();}
+    if(!pts.has(e.pointerId))return;
+    const prev=pts.get(e.pointerId); pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    const r=st.getBoundingClientRect();
+    if(pts.size>=2){                                   // pinch-zoom (touch)
+      const [a,b]=[...pts.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(pinch>0) _zoomAt((a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top,d/pinch);
+      pinch=d; moved=true;
+    }else{                                             // single-pointer pan
+      const dx=e.clientX-prev.x, dy=e.clientY-prev.y;
+      if(moved||Math.abs(dx)+Math.abs(dy)>4){
+        if(!moved){ moved=true; try{ st.setPointerCapture(e.pointerId); }catch(_){} }  // capture only after a real drag
+        _ztx+=dx; _zty+=dy; _applyZoom();
+      }
+    }
   });
-  const end=()=>{ if(!down)return; down=false; st.classList.remove("grabbing");
-    if(moved||btn===2){_suppressClick=true; setTimeout(()=>{_suppressClick=false;},60);} };
-  st.addEventListener("pointerup",end);
-  st.addEventListener("pointerleave",end);
+  const up=e=>{
+    if(!pts.has(e.pointerId))return;
+    pts.delete(e.pointerId); if(pts.size<2) pinch=0;
+    if(pts.size===0){ st.classList.remove("grabbing");
+      if(moved||btn===2){ _suppressClick=true; setTimeout(()=>{_suppressClick=false;},60); } }
+  };
+  st.addEventListener("pointerup",up);
+  st.addEventListener("pointercancel",up);
+
   document.addEventListener("keydown",e=>{
     if(e.key==="Escape" && $("#stagewrap").classList.contains("full")){ $("#stagewrap").classList.remove("full"); setTimeout(resetZoom,30); }
   });
