@@ -47,8 +47,10 @@
   .filecard .ok{margin-left:auto;color:#16a34a;font-size:18px}
 
   /* findings list */
-  .frow{display:flex;align-items:center;gap:9px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px}
+  .frow{display:flex;align-items:center;gap:9px;padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px;border-radius:7px}
   .frow:last-child{border:none}
+  .frow.click{cursor:pointer}
+  .frow.click:hover{background:var(--accent2)}
   .dot{width:9px;height:9px;border-radius:50%;flex:none}
   .frow b{margin-left:auto}
 
@@ -292,10 +294,19 @@ function renderFindings(){
     ["Caries", BORDER.Caries],
     ["Periapical Lesion", BORDER["Periapical Lesion"]],
     ["Deep Caries", BORDER["Deep Caries"]],
-  ].map(([d,c])=>`<div class="frow"><i class="dot" style="background:${c}"></i>${d}<b>${count(d)}</b></div>`).join("");
+  ].map(([d,c])=>{
+    const n = count(d);
+    const click = n>0 ? `class="frow click" onclick="jumpToClass('${d}')"` : `class="frow"`;
+    return `<div ${click}><i class="dot" style="background:${c}"></i>${d}<b>${n}</b></div>`;
+  }).join("");
   const healthy = (D.teeth||[]).filter(t=>!t.has_disease).length;
   $("#findings").innerHTML = rows +
     `<div class="frow"><i class="dot" style="background:#cbd5c0"></i>Gigi Sehat<b>${healthy}</b></div>`;
+}
+// click a Temuan-AI class row -> open + auto-zoom the first lesion of that class
+function jumpToClass(dis){
+  const f = (D.findings||[]).find(x=>x.disease===dis);
+  if(f) clickDisease(f.idx);
 }
 
 function renderStats(){
@@ -377,6 +388,15 @@ function _zoomAt(cx,cy,f){
   _ztx=cx-((cx-_ztx)/_zs)*ns; _zty=cy-((cy-_zty)/_zs)*ns; _zs=ns; _applyZoom();
 }
 function zoomBy(f){const st=$("#stage");_zoomAt(st.clientWidth/2,st.clientHeight/2,f);}
+// auto-zoom/pan so a lesion bbox (image px) is framed and centred
+function zoomToBox(box){
+  const st=$("#stage"); if(!$("#zoomwrap")||!box||!D) return;
+  const W=st.clientWidth, H=st.clientHeight, ds=W/D.width;
+  const [x0,y0,x1,y1]=box, bw=(x1-x0)*ds, bh=(y1-y0)*ds;
+  const bx=((x0+x1)/2)*ds, by=((y0+y1)/2)*ds;
+  const Z=Math.max(1.8, Math.min(6, (W*0.5)/Math.max(bw,bh,1)));
+  _zs=Z; _ztx=W/2-bx*Z; _zty=H/2-by*Z; _applyZoom();
+}
 function initZoom(){
   const st=$("#stage");
   st.addEventListener("contextmenu",e=>e.preventDefault());   // allow right-drag pan
@@ -427,6 +447,7 @@ async function clickDisease(detIdx){
     selectChips(d.fdi, detIdx);
     const ml=$("#masklayer"); if(ml) ml.innerHTML = `<img class="mask" src="${d.overlay}">`;
     renderDetail(d);
+    zoomToBox(d.box);   // auto-zoom the canvas to this lesion
   }catch(e){ $("#detailbody").innerHTML=`<p class="sub">⚠️ ${e} — server masih loading? coba ulang.</p>`; }
 }
 function selectChips(fdi, detIdx){
