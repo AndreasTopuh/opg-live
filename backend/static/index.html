@@ -12,6 +12,11 @@
   body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;font-size:14px}
   button{font:inherit;cursor:pointer}
   .layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+  .layout.collapsed{grid-template-columns:1fr}
+  .layout.collapsed .sidebar{display:none}
+  .sbtoggle{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;color:var(--accent);font-weight:600;font-size:13px;width:100%}
+  #showSb{display:none;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-weight:700;color:var(--accent)}
+  .layout.collapsed #showSb{display:inline-flex}
 
   /* ---- sidebar ---- */
   .sidebar{background:#fff;border-right:1px solid var(--line);padding:20px 16px;display:flex;flex-direction:column;gap:6px}
@@ -162,13 +167,17 @@
     <div class="nav"><span class="ic">▤</span> Laporan</div>
     <div class="nav"><span class="ic">⚙</span> Pengaturan</div>
     <div class="help"><b>Butuh bantuan?</b><br>Lihat panduan penggunaan ↗</div>
+    <button class="sbtoggle" onclick="toggleSidebar()">◁ Sembunyikan sidebar</button>
     <div class="ver">OPG-Live v2.0.0 · MVP</div>
   </aside>
 
   <!-- app -->
   <div class="app">
     <header class="topbar">
-      <strong>Dashboard</strong>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button id="showSb" onclick="toggleSidebar()" title="Tampilkan sidebar">☰</button>
+        <strong>Dashboard</strong>
+      </div>
       <div style="display:flex;align-items:center;gap:14px">
         <span class="pill">✦ OPG-Live AI</span>
         <div class="prof"><div class="av">A</div><div><b style="font-size:13px">OPG-Live</b><small>Decision Support</small></div></div>
@@ -509,6 +518,8 @@ function detTab(t){
   }[t];
   $("#tabbody").innerHTML = body;
 }
+
+function toggleSidebar(){ document.querySelector(".layout").classList.toggle("collapsed"); }
 
 function exportReport(){
   if(!D){ alert("Belum ada hasil analisis."); return; }
