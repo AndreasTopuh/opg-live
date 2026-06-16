@@ -42,9 +42,38 @@
   .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .toolbar button{padding:5px 12px;font-size:12px}
   .toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* ---- analysis modal (AI-agent style step loader) ---- */
+  #loader{position:fixed;inset:0;background:rgba(28,26,23,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50}
+  #loader.show{display:flex}
+  .loader-card{background:#fff;border-radius:16px;padding:26px 30px;width:min(420px,92vw);box-shadow:0 20px 60px #0003;animation:pop .25s ease}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+  .loader-card h3{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:9px}
+  .loader-card .sub{font-size:12px;color:var(--muted);margin:0 0 16px}
+  .dots{display:inline-flex;gap:3px;margin-left:2px}
+  .dots i{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 1s infinite}
+  .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+  .steps{list-style:none;margin:0;padding:0}
+  .step{display:flex;align-items:center;gap:11px;padding:8px 0;font-size:14px;color:var(--muted);opacity:.5;transition:.25s}
+  .step.active,.step.done{opacity:1;color:var(--ink)}
+  .step.active{font-weight:600}
+  .step .ic{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;position:relative;box-sizing:border-box}
+  .step.active .ic{border-color:var(--accent);border-top-color:transparent;animation:spin .7s linear infinite}
+  .step.done .ic{border-color:#19a974;background:#19a974;animation:none}
+  .step.done .ic::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loaderNote{font-size:12px;color:var(--muted);margin-top:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
+<div id="loader">
+  <div class="loader-card">
+    <h3>🦷 Analyzing OPG <span class="dots"><i></i><i></i><i></i></span></h3>
+    <p class="sub">Stage 1 → Stage 2 pipeline running on the server</p>
+    <ul class="steps" id="steps"></ul>
+    <p id="loaderNote"></p>
+  </div>
+</div>
 <header>
   <h1>🦷 OPG-Live</h1>
   <span class="tag">MVP · click a tooth to segment</span>
@@ -105,18 +134,60 @@ $("#file").onchange = e => { const f = e.target.files[0]; e.target.value = ""; i
 $("#drop").ondragover = e => e.preventDefault();
 $("#drop").ondrop = e => { e.preventDefault(); upload(e.dataTransfer.files[0]); };
 
+// ---- analysis modal: steps mirror the real Stage 1->2 pipeline ----
+const STEPS = [
+  ["read",    "Reading panoramic image"],
+  ["det",     "Detecting lesions · YOLOv8"],
+  ["enum",    "Enumerating teeth (FDI) · YOLOv8"],
+  ["seg",     "Segmenting masks · SAM + adapter"],
+  ["compose", "Composing views & overview"],
+];
+let _stepTimer = null;
+
+function _setStep(i, state){
+  const el = document.getElementById("st-"+STEPS[i][0]);
+  if(el) el.className = "step " + state;
+}
+function showLoader(){
+  clearInterval(_stepTimer);
+  $("#steps").innerHTML = STEPS.map(s =>
+    `<li id="st-${s[0]}" class="step"><span class="ic"></span><span>${s[1]}</span></li>`).join("");
+  $("#loaderNote").textContent = "First run loads the models — this can take 30–90s. Please don't re-upload.";
+  $("#loader").classList.add("show");
+  let i = 0; _setStep(0, "active");
+  // advance through steps; HOLD on the last one until the response arrives
+  _stepTimer = setInterval(() => {
+    if(i < STEPS.length - 1){ _setStep(i, "done"); i++; _setStep(i, "active"); }
+  }, 1400);
+}
+function finishLoader(){
+  clearInterval(_stepTimer);
+  STEPS.forEach((s, i) => _setStep(i, "done"));
+  setTimeout(() => $("#loader").classList.remove("show"), 450);
+}
+function errorLoader(msg){
+  clearInterval(_stepTimer);
+  $("#loaderNote").innerHTML = `<span style="color:#c0392b">⚠️ ${msg}</span>
+    <button onclick="document.getElementById('loader').classList.remove('show')">Close</button>`;
+}
+
 async function upload(f){
   if(!f) return;
-  $("#status").textContent = "⏳ Running YOLOv8 + SAM… (FIRST run loads models 30-90s — please wait, don't re-upload)";
+  showLoader();
+  $("#status").textContent = "⏳ Running YOLOv8 + SAM…";
   const fd = new FormData(); fd.append("file", f);
   try{
     const r = await fetch(API+"/api/analyze",{method:"POST",body:fd});
     let d; try{ d = await r.json(); }catch(e){ d={error:"non-JSON (HTTP "+r.status+")"}; }
-    if(!r.ok||d.error||!d.teeth){ $("#status").textContent="❌ "+(d.error||d.detail||"HTTP "+r.status); return; }
+    if(!r.ok||d.error||!d.teeth){
+      const msg = d.error||d.detail||"HTTP "+r.status;
+      errorLoader(msg); $("#status").textContent="❌ "+msg; return;
+    }
     D = d;
+    finishLoader();
     $("#status").textContent = `✅ ${d.findings.length} lesion(s), ${d.teeth.length} teeth detected.`;
     renderFindings(); resetView();
-  }catch(e){ $("#status").textContent="❌ "+e+" (model still loading? wait & retry once)"; }
+  }catch(e){ errorLoader(e+" — model still loading? wait & retry once"); $("#status").textContent="❌ "+e; }
 }
 
 function renderFindings(){
