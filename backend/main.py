@@ -58,7 +58,8 @@ def index():
     # proxies /api here — so this route mainly serves prod/Colab.
     for p in (os.path.join(DIST, "index.html"), os.path.join(STATIC, "index.html")):
         if os.path.exists(p):
-            return FileResponse(p)
+            # no-store so the browser never serves a stale UI after a git pull
+            return FileResponse(p, headers={"Cache-Control": "no-store, max-age=0"})
     return {"msg": "No frontend built. Run `npm run dev` (local) or `npm run build`."}
 
 

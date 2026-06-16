@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta http-equiv="Pragma" content="no-cache">
 <title>OPG-Live · MVP</title>
 <style>
   :root{--bg:#f7f4ee;--card:#fff;--ink:#1c1a17;--muted:#6b6459;--line:#e6e0d6;--accent:#7c5cff;}
@@ -178,23 +180,28 @@ async function clickDisease(detIdx){
   document.querySelectorAll(".finding,.tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
   document.querySelectorAll(".finding").forEach(b=>b.classList.toggle("active", b.dataset.det==detIdx));
   $("#vtitle").textContent = "Segmenting…";
-  const r = await fetch(API+"/api/segment",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({id:D.id, idx:detIdx})});
-  const d = await r.json();
-  if(d.error){ $("#side").innerHTML=`<p class="muted">⚠️ ${d.error}</p>`; return; }
-  $("#vtitle").textContent = `${d.disease}${d.fdi?" · FDI "+d.fdi:""}`;
-  // overlay the transparent mask in-place over the raw image
-  const ml = $("#masklayer");
-  if(ml) ml.innerHTML = `<img class="mask" src="${d.overlay}">`;
-  $("#side").innerHTML = `
-    <img src="${d.crop}" style="width:100%;border-radius:8px;border:1px solid var(--line)">
-    <p class="muted" style="text-align:center;margin:4px 0">zoom</p>
-    <div class="metrics" style="flex-direction:column;gap:8px">
-      <span>tooth (FDI)<b>${d.fdi||"?"}</b></span>
-      <span>detector conf<b>${d.conf}</b></span>
-      <span>mask area (px)<b>${d.mask_area_px.toLocaleString()}</b></span>
-      <span>SAM score<b>${d.sam_score}</b></span>
-    </div>`;
+  try{
+    const r = await fetch(API+"/api/segment",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({id:D.id, idx:detIdx})});
+    const d = await r.json();
+    if(d.error){ $("#vtitle").textContent="Segment failed"; $("#side").innerHTML=`<p class="muted">⚠️ ${d.error}</p>`; return; }
+    $("#vtitle").textContent = `${d.disease}${d.fdi?" · FDI "+d.fdi:""}`;
+    // overlay the transparent mask in-place over the raw image
+    const ml = $("#masklayer");
+    if(ml) ml.innerHTML = `<img class="mask" src="${d.overlay}">`;
+    $("#side").innerHTML = `
+      <img src="${d.crop}" style="width:100%;border-radius:8px;border:1px solid var(--line)">
+      <p class="muted" style="text-align:center;margin:4px 0">zoom</p>
+      <div class="metrics" style="flex-direction:column;gap:8px">
+        <span>tooth (FDI)<b>${d.fdi||"?"}</b></span>
+        <span>detector conf<b>${d.conf}</b></span>
+        <span>mask area (px)<b>${d.mask_area_px.toLocaleString()}</b></span>
+        <span>SAM score<b>${d.sam_score}</b></span>
+      </div>`;
+  }catch(e){
+    $("#vtitle").textContent = "Segment error";
+    $("#side").innerHTML = `<p class="muted">⚠️ ${e} — server may still be loading or stopped. Retry once.</p>`;
+  }
 }
 </script>
 </body>
