@@ -107,6 +107,11 @@
   .tabbody h4{margin:14px 0 4px;font-size:13px}
   .tabbody p{margin:0 0 8px;font-size:12.5px;color:#4a443b}
   .tabbody ol{margin:4px 0;padding-left:18px;font-size:12.5px;color:#4a443b}
+  .scards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}
+  .sc{border:1px solid var(--line);border-radius:10px;padding:9px;background:#fafafa}
+  .sc small{font-size:10px;color:var(--muted);display:block}
+  .sc b{font-size:13px;display:block;margin:2px 0;line-height:1.2}
+  .sc .sct{font-size:10px;color:var(--muted)}
 
   /* loader modal */
   #loader{position:fixed;inset:0;background:rgba(28,26,23,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50}
@@ -211,10 +216,10 @@
           <p class="sub" id="hint" style="margin:8px 0 0"></p>
           <div class="chart" id="chart"></div>
           <div class="legend" id="legend" style="display:none">
-            <span><i class="sw" style="background:#2563eb"></i>Impacted</span>
-            <span><i class="sw" style="background:#06b6d4"></i>Caries</span>
-            <span><i class="sw" style="background:#eab308"></i>Periapical</span>
-            <span><i class="sw" style="background:#22c55e"></i>Deep Caries</span>
+            <span><i class="sw" style="background:#8b5cf6"></i>Impacted</span>
+            <span><i class="sw" style="background:#eab308"></i>Caries</span>
+            <span><i class="sw" style="background:#ef4444"></i>Periapical</span>
+            <span><i class="sw" style="background:#3b82f6"></i>Deep Caries</span>
             <span><i class="sw" style="background:#cbd5c0"></i>Gigi sehat</span>
           </div>
         </section>
@@ -242,7 +247,7 @@
 
 <script>
 const API = "";
-const BORDER = {Impacted:"#2563eb", Caries:"#06b6d4", "Periapical Lesion":"#eab308", "Deep Caries":"#22c55e"};
+const BORDER = {Impacted:"#8b5cf6", Caries:"#eab308", "Periapical Lesion":"#ef4444", "Deep Caries":"#3b82f6"};
 let D = null, _file = null;
 const $ = s => document.querySelector(s);
 
@@ -429,8 +434,10 @@ function selectChips(fdi, detIdx){
   if(detIdx!=null) document.querySelectorAll(".tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
 }
 
-let _detTab = "overview";
+let _detTab = "overview", _det = null;
+function confLabel(c){ return c>=0.7?"Tinggi":c>=0.4?"Sedang":"Rendah"; }
 function renderDetail(d){
+  _det = d;
   const col = BORDER[d.disease]||"#22c55e";
   $("#detailbody").innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -443,13 +450,11 @@ function renderDetail(d){
       <div class="mcell"><small>mask area (px)</small><b>${(d.mask_area_px||0).toLocaleString()}</b></div>
       <div class="mcell"><small>SAM score</small><b>${d.sam_score}</b></div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div class="tabs" id="tabs">
-        <div class="tab" data-t="overview" onclick="detTab('overview')">Overview</div>
-        <div class="tab" data-t="ai" onclick="detTab('ai')">AI Explanation</div>
-        <div class="tab" data-t="rec" onclick="detTab('rec')">Rekomendasi</div>
-        <div class="tab" data-t="ref" onclick="detTab('ref')">Referensi</div>
-      </div>
+    <div class="tabs" id="tabs">
+      <div class="tab" data-t="overview" onclick="detTab('overview')">Overview</div>
+      <div class="tab" data-t="ai" onclick="detTab('ai')">AI Explanation</div>
+      <div class="tab" data-t="rec" onclick="detTab('rec')">Rekomendasi</div>
+      <div class="tab" data-t="ref" onclick="detTab('ref')">Referensi</div>
     </div>
     <div class="tabbody" id="tabbody"></div>`;
   detTab(_detTab);
@@ -457,12 +462,20 @@ function renderDetail(d){
 function detTab(t){
   _detTab = t;
   document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on", x.dataset.t===t));
+  const d = _det, col = BORDER[d.disease]||"#22c55e";
   const mock = `<span class="mock">MOCKUP · LLM belum aktif</span>`;
+  const cards = `<div class="scards">
+    <div class="sc"><small>● Status</small><b style="color:${col}">${d.disease}</b><span class="sct">terdeteksi</span></div>
+    <div class="sc"><small>◆ Confidence</small><b>${Math.round(d.conf*100)}%</b><span class="sct">${confLabel(d.conf)}</span></div>
+    <div class="sc"><small>▲ Severity</small><b>—</b><span class="sct">mockup</span></div>
+  </div>`;
+  const temuan = `<h4>Temuan Radiografis</h4><p>Metrik di atas (FDI, detector confidence, luas mask, SAM score) berasal dari pipeline <b>nyata</b> Stage 1 (YOLOv8) + Stage 2 (SAM + adapter) — bukan mockup.</p>`;
+  const ai  = `<h4>Interpretasi AI (LLM + RAG) ${mock}</h4><p>Penjelasan tekstual GPT-4o + RAG akan tampil di sini setelah Stage 3 diaktifkan.</p>`;
+  const rec = `<h4>Rekomendasi Singkat ${mock}</h4><p>Saran tindak lanjut klinis (mis. pemeriksaan bitewing, restorasi) akan dihasilkan oleh Stage 3.</p>`;
+  const ref = `<h4>Sumber Referensi (RAG) ${mock}</h4><ol><li>ADA Caries Classification System</li><li>ICCMS / ICDAS Guidelines</li><li>AAE Endodontic Diagnosis</li></ol>`;
   const body = {
-    overview: `<h4>Temuan Radiografis</h4><p>Metrik di atas (FDI, detector confidence, luas mask, SAM score) berasal dari pipeline nyata Stage 1 (YOLOv8) + Stage 2 (SAM + adapter).</p>`,
-    ai: `<h4>Interpretasi AI (LLM + RAG) ${mock}</h4><p>Penjelasan tekstual GPT-4o + RAG akan tampil di sini setelah Stage 3 diaktifkan.</p>`,
-    rec: `<h4>Rekomendasi ${mock}</h4><p>Saran tindak lanjut klinis akan dihasilkan oleh Stage 3.</p>`,
-    ref: `<h4>Sumber Referensi (RAG) ${mock}</h4><ol><li>ADA Caries Classification System</li><li>ICCMS / ICDAS Guidelines</li><li>AAE Endodontic Diagnosis</li></ol>`,
+    overview: cards + temuan + ai + rec + ref,
+    ai, rec, ref,
   }[t];
   $("#tabbody").innerHTML = body;
 }

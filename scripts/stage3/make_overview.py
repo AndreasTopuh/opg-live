@@ -27,12 +27,12 @@ for _d in ("stage1", "stage2", "stage3"):
 
 from dentex_dataset import CLASS_NAMES  # stage2
 
-# Colour per class (BGR for OpenCV)
+# Colour per class (BGR for OpenCV) — matches the frontend legend palette
 COLORS = {
-    0: (255, 0, 0),     # Impacted    - blue
-    1: (255, 255, 0),   # Caries      - cyan
-    2: (0, 255, 255),   # Periapical  - yellow
-    3: (0, 255, 0),     # Deep Caries - green
+    0: (246, 92, 139),   # Impacted    - purple (#8b5cf6)
+    1: (8, 179, 234),    # Caries      - amber  (#eab308)
+    2: (68, 68, 239),    # Periapical  - red    (#ef4444)
+    3: (246, 130, 59),   # Deep Caries - blue   (#3b82f6)
 }
 ALPHA = 0.45
 
@@ -100,7 +100,7 @@ def run(args):
         cv2.imwrite(f"{out_dir}/{os.path.basename(p)}", img)
 
     print(f"OK: {len(imgs)} overview ({'mask' if args.masks else 'bbox'}) -> {out_dir}")
-    print("   Colours: Impacted=blue, Caries=cyan, Periapical=yellow, Deep Caries=green")
+    print("   Colours: Impacted=purple, Caries=amber, Periapical=red, Deep Caries=blue")
 
 
 if __name__ == "__main__":
