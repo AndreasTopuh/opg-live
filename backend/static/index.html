@@ -13,7 +13,7 @@
   header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
   header h1{font-size:20px;margin:0;font-weight:700}
   header .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
-  main{max-width:1180px;margin:0 auto;padding:24px 28px;display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+  main{max-width:1340px;margin:0 auto;padding:24px 28px;display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
   .card h2{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
   .drop{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--muted);cursor:pointer;display:block}
@@ -23,10 +23,15 @@
   .finding .dx{font-weight:600;font-size:14px}.finding .meta{font-size:12px;color:var(--muted)}
   button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
   .muted{color:var(--muted);font-size:13px}
-  /* interactive stage */
-  #stage{position:relative;display:inline-block;width:100%;line-height:0;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  /* interactive stage + pan/zoom canvas */
+  #stagewrap{position:relative}
+  #stage{position:relative;display:block;width:100%;min-height:300px;line-height:0;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#eee9e0;cursor:grab;touch-action:none}
+  #stage.grabbing{cursor:grabbing}
+  #zoomwrap{position:relative;transform-origin:0 0;will-change:transform;line-height:0}
   #stage img.base,#stage img.mask{width:100%;display:block}
   #stage img.mask{position:absolute;inset:0;pointer-events:none}
+  #zoomctl{position:absolute;top:10px;right:10px;display:none;flex-direction:column;gap:6px;z-index:6}
+  #zoomctl button{width:34px;height:34px;padding:0;font-size:17px;line-height:1;background:#fffdf8ee;border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 4px #0002;cursor:pointer}
   /* transparent hotspots: outline + tag only on hover/selection so the baked
      SAM overview stays clean and uncluttered (no always-on boxes/labels). */
   .tbox{position:absolute;border:2px solid transparent;border-radius:3px;cursor:pointer;transition:.1s;background:transparent}
@@ -37,7 +42,8 @@
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:10px}
   .legend span{display:inline-flex;align-items:center;gap:5px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
   .metrics{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px}.metrics b{display:block;font-size:18px}
-  .grid2{display:grid;grid-template-columns:2.4fr 1fr;gap:14px;align-items:start;margin-top:8px}
+  #viewergrid{display:grid;grid-template-columns:1fr;gap:14px;align-items:start;margin-top:8px}
+  #viewergrid.withside{grid-template-columns:2.4fr 1fr}
   .hint{font-size:12px;color:var(--muted);margin:8px 0 0}
   .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
   .toolbar button{padding:5px 12px;font-size:12px}
@@ -96,7 +102,7 @@
 
   <section class="card">
     <h2><span id="vtitle">Viewer</span></h2>
-    <div class="grid2">
+    <div class="grid2" id="viewergrid">
       <div>
         <div class="toolbar" id="toolbar" style="display:none">
           <button data-mode="overview" onclick="setMode('overview')" class="on">Overview</button>
@@ -106,7 +112,14 @@
           <button data-mode="hide" onclick="setMode('hide')">Hide</button>
           <button data-mode="tooth" onclick="setMode('tooth')">Per tooth</button>
         </div>
-        <div id="stage"><p class="muted" style="line-height:1.5">Result appears here.</p></div>
+        <div id="stagewrap">
+          <div id="stage"><p class="muted" style="line-height:1.5">Result appears here.</p></div>
+          <div id="zoomctl">
+            <button onclick="zoomBy(1.25)" title="Zoom in">＋</button>
+            <button onclick="zoomBy(0.8)" title="Zoom out">－</button>
+            <button onclick="resetZoom()" title="Reset view">⟲</button>
+          </div>
+        </div>
         <p class="hint" id="hint"></p>
         <div class="legend" id="legend" style="display:none">
           <span><i class="sw" style="background:#00f"></i>Impacted</span>
@@ -135,38 +148,47 @@ $("#drop").ondragover = e => e.preventDefault();
 $("#drop").ondrop = e => { e.preventDefault(); upload(e.dataTransfer.files[0]); };
 
 // ---- analysis modal: steps mirror the real Stage 1->2 pipeline ----
+// durations weighted so DETECTION and SAM SEGMENTATION visibly dominate the
+// animation (the heavy stages), so the work reads as genuinely happening.
 const STEPS = [
-  ["read",    "Reading panoramic image"],
-  ["det",     "Detecting lesions · YOLOv8"],
-  ["enum",    "Enumerating teeth (FDI) · YOLOv8"],
-  ["seg",     "Segmenting masks · SAM + adapter"],
-  ["compose", "Composing views & overview"],
+  ["read",    "Reading panoramic image", 600],
+  ["det",     "Detecting lesions · YOLOv8", 2400],
+  ["enum",    "Enumerating teeth (FDI) · YOLOv8", 1300],
+  ["seg",     "Segmenting masks · SAM + adapter", 2800],
+  ["compose", "Composing views & overview", 900],
 ];
-let _stepTimer = null;
+let _stepTimer = null, _loaderDone = false, _curStep = 0;
 
 function _setStep(i, state){
   const el = document.getElementById("st-"+STEPS[i][0]);
   if(el) el.className = "step " + state;
 }
+function _tick(){
+  if(_curStep < STEPS.length - 1){
+    _setStep(_curStep, "done"); _curStep++; _setStep(_curStep, "active");
+    _stepTimer = setTimeout(_tick, STEPS[_curStep][2]);
+  } else if(_loaderDone){
+    STEPS.forEach((s, i) => _setStep(i, "done"));
+    setTimeout(() => $("#loader").classList.remove("show"), 450);
+  } else {
+    // animation reached the last step but the response isn't back yet — hold here
+    _stepTimer = setTimeout(_tick, 400);
+  }
+}
 function showLoader(){
-  clearInterval(_stepTimer);
+  clearTimeout(_stepTimer); _loaderDone = false; _curStep = 0;
   $("#steps").innerHTML = STEPS.map(s =>
     `<li id="st-${s[0]}" class="step"><span class="ic"></span><span>${s[1]}</span></li>`).join("");
-  $("#loaderNote").textContent = "First run loads the models — this can take 30–90s. Please don't re-upload.";
+  $("#loaderNote").textContent = "Running detection + SAM segmentation… first run loads the models (30–90s). Please don't re-upload.";
   $("#loader").classList.add("show");
-  let i = 0; _setStep(0, "active");
-  // advance through steps; HOLD on the last one until the response arrives
-  _stepTimer = setInterval(() => {
-    if(i < STEPS.length - 1){ _setStep(i, "done"); i++; _setStep(i, "active"); }
-  }, 1400);
+  _setStep(0, "active");
+  _stepTimer = setTimeout(_tick, STEPS[0][2]);
 }
-function finishLoader(){
-  clearInterval(_stepTimer);
-  STEPS.forEach((s, i) => _setStep(i, "done"));
-  setTimeout(() => $("#loader").classList.remove("show"), 450);
-}
+// mark the response as arrived; the step animation still plays through
+// detection + segmentation before the modal closes.
+function finishLoader(){ _loaderDone = true; }
 function errorLoader(msg){
-  clearInterval(_stepTimer);
+  clearTimeout(_stepTimer); _loaderDone = true;
   $("#loaderNote").innerHTML = `<span style="color:#c0392b">⚠️ ${msg}</span>
     <button onclick="document.getElementById('loader').classList.remove('show')">Close</button>`;
 }
@@ -206,13 +228,16 @@ function resetView(){ setMode("overview"); }   // default after upload + "Overvi
 function setMode(m){
   MODE = m;
   $("#toolbar").style.display = "flex";
+  $("#zoomctl").style.display = "flex";
   document.querySelectorAll("#toolbar button").forEach(b=>b.classList.toggle("on", b.dataset.mode===m));
   $("#legend").style.display = "flex";
+  $("#viewergrid").classList.toggle("withside", m === "tooth");   // big stage unless per-tooth
 
   if(m === "tooth"){
     $("#vtitle").textContent = "Per tooth — hover & click";
-    $("#hint").textContent = "Click a tooth → lesion shows its SAM mask + metrics; a healthy tooth shows no mask.";
-    $("#stage").innerHTML = `<img class="base" src="${D.views.raw}"><div id="masklayer"></div>${toothBoxes()}`;
+    $("#hint").textContent = "Click a tooth → SAM mask + metrics; healthy tooth = no mask. Scroll to zoom, drag to pan.";
+    $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${D.views.raw}"><div id="masklayer"></div>${toothBoxes()}</div>`;
+    resetZoom();
     return;
   }
   const v = D.views;
@@ -221,11 +246,12 @@ function setMode(m){
                  mask:"Mask arm — SAM masks only", hybrid:"Hybrid arm — box + mask",
                  hide:"Original OPG — overlay hidden"}[m];
   $("#vtitle").textContent = title;
-  $("#hint").textContent = m === "hide"
+  $("#hint").textContent = (m === "hide"
     ? "Segmentation hidden. BBox / Mask / Hybrid show the 3 grounding conditions; Per tooth is interactive."
-    : "Whole-image rendering of all detected lesions.";
+    : "Whole-image rendering of all detected lesions.") + " Scroll to zoom, drag to pan.";
   $("#side").innerHTML = "";
-  $("#stage").innerHTML = `<img class="base" src="${src}">`;
+  $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${src}"></div>`;
+  resetZoom();
 }
 
 // transparent clickable hotspots (per-tooth mode only)
@@ -240,13 +266,56 @@ function toothBoxes(){
   }).join("");
 }
 
+// ---- pan/zoom (Google-Maps-style) on the viewer canvas ----
+let _zs = 1, _ztx = 0, _zty = 0, _suppressClick = false;
+function _applyZoom(){
+  const w = $("#zoomwrap"); if(!w) return;
+  const st = $("#stage"), W = st.clientWidth, H = st.clientHeight;
+  const minTx = Math.min(0, W - W*_zs), minTy = Math.min(0, H - H*_zs);
+  _ztx = Math.max(minTx, Math.min(0, _ztx));   // clamp so the image can't drift off-canvas
+  _zty = Math.max(minTy, Math.min(0, _zty));
+  w.style.transform = `translate(${_ztx}px,${_zty}px) scale(${_zs})`;
+}
+function resetZoom(){ _zs = 1; _ztx = 0; _zty = 0; _applyZoom(); }
+function _zoomAt(cx, cy, f){
+  const ns = Math.max(1, Math.min(8, _zs*f));
+  _ztx = cx - ((cx - _ztx)/_zs)*ns;            // keep the point under the cursor fixed
+  _zty = cy - ((cy - _zty)/_zs)*ns;
+  _zs = ns; _applyZoom();
+}
+function zoomBy(f){ const st = $("#stage"); _zoomAt(st.clientWidth/2, st.clientHeight/2, f); }
+function initZoom(){
+  const st = $("#stage");
+  st.addEventListener("wheel", e => {
+    if(!$("#zoomwrap")) return; e.preventDefault();
+    const r = st.getBoundingClientRect();
+    _zoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.15 : 0.87);
+  }, {passive:false});
+  let down = false, sx = 0, sy = 0, moved = false;
+  st.addEventListener("pointerdown", e => {
+    if(!$("#zoomwrap")) return; down = true; moved = false; sx = e.clientX; sy = e.clientY; st.classList.add("grabbing");
+  });
+  st.addEventListener("pointermove", e => {
+    if(!down) return; const dx = e.clientX - sx, dy = e.clientY - sy;
+    if(moved || Math.abs(dx) + Math.abs(dy) > 4){ moved = true; _ztx += dx; _zty += dy; sx = e.clientX; sy = e.clientY; _applyZoom(); }
+  });
+  const end = () => {
+    if(!down) return; down = false; st.classList.remove("grabbing");
+    if(moved){ _suppressClick = true; setTimeout(() => { _suppressClick = false; }, 60); }  // a drag must not fire a tooth click
+  };
+  st.addEventListener("pointerup", end);
+  st.addEventListener("pointerleave", end);
+}
+
 function clickHealthy(fdi){
+  if(_suppressClick) return;
   $("#vtitle").textContent = `FDI ${fdi} — healthy`;
   $("#side").innerHTML = `<p class="muted">No pathology detected on this tooth — no mask.</p>`;
   document.querySelectorAll(".tbox").forEach(b=>b.classList.remove("sel"));
 }
 
 async function clickDisease(detIdx){
+  if(_suppressClick) return;               // ignore the click that ends a pan-drag
   if(MODE !== "tooth") setMode("tooth");   // ensure hotspots + #masklayer exist
   document.querySelectorAll(".finding,.tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
   document.querySelectorAll(".finding").forEach(b=>b.classList.toggle("active", b.dataset.det==detIdx));
@@ -274,6 +343,8 @@ async function clickDisease(detIdx){
     $("#side").innerHTML = `<p class="muted">⚠️ ${e} — server may still be loading or stopped. Retry once.</p>`;
   }
 }
+
+initZoom();
 </script>
 </body>
 </html>
