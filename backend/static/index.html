@@ -25,11 +25,13 @@
   #stage{position:relative;display:inline-block;width:100%;line-height:0;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
   #stage img.base,#stage img.mask{width:100%;display:block}
   #stage img.mask{position:absolute;inset:0;pointer-events:none}
-  .tbox{position:absolute;border:2px solid rgba(150,150,150,.55);border-radius:3px;cursor:pointer;transition:.1s;background:transparent}
+  /* transparent hotspots: outline + tag only on hover/selection so the baked
+     SAM overview stays clean and uncluttered (no always-on boxes/labels). */
+  .tbox{position:absolute;border:2px solid transparent;border-radius:3px;cursor:pointer;transition:.1s;background:transparent}
   .tbox:hover{border-color:var(--accent);background:rgba(124,92,255,.12)}
-  .tbox.disease{border-width:2.5px}
   .tbox.sel{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)}
-  .tbox .tag{position:absolute;top:-17px;left:0;font-size:10px;background:#000a;color:#fff;padding:0 4px;border-radius:3px;white-space:nowrap;line-height:1.4}
+  .tbox .tag{position:absolute;top:-17px;left:0;font-size:10px;background:#000a;color:#fff;padding:0 4px;border-radius:3px;white-space:nowrap;line-height:1.4;display:none}
+  .tbox:hover .tag,.tbox.sel .tag{display:block}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:10px}
   .legend span{display:inline-flex;align-items:center;gap:5px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
   .metrics{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px}.metrics b{display:block;font-size:18px}
@@ -110,22 +112,22 @@ function renderFindings(){
     : '<p class="muted">No lesions detected.</p>';
 }
 
-// interactive view: raw image + clickable tooth boxes (no masks yet)
+// interactive view: the SAM-segmented overview (masks + clean labels baked in
+// server-side) as the base, with transparent clickable hotspots on top.
 function resetView(){
-  $("#vtitle").textContent = "Click a tooth on the image";
+  $("#vtitle").textContent = "Segmented OPG — hover/click a tooth";
   $("#side").innerHTML = "";
-  $("#hint").textContent = "Coloured box = lesion detected · grey = healthy tooth. Click any tooth.";
+  $("#hint").textContent = "All lesions already segmented by SAM. Hover a tooth to outline it, click for zoom & metrics.";
   $("#legend").style.display = "flex";
   const pct = (v,t)=> (v/t*100)+"%";
   const boxes = D.teeth.map(t=>{
-    const [x0,y0,x1,y1]=t.box, col = t.has_disease?BORDER[t.disease]||"#0f0":"";
-    const style = `left:${pct(x0,D.width)};top:${pct(y0,D.height)};width:${pct(x1-x0,D.width)};height:${pct(y1-y0,D.height)};`
-      + (t.has_disease?`border-color:${col};`:"");
+    const [x0,y0,x1,y1]=t.box, col = t.has_disease?BORDER[t.disease]||"#0f0":"#999";
+    const style = `left:${pct(x0,D.width)};top:${pct(y0,D.height)};width:${pct(x1-x0,D.width)};height:${pct(y1-y0,D.height)};`;
     const onclick = t.has_disease?`clickDisease(${t.det_idx})`:`clickHealthy('${t.fdi}')`;
-    const tag = t.has_disease?`<span class="tag" style="background:${col};color:#000">${t.disease}</span>`:"";
+    const tag = `<span class="tag" style="background:${col};color:#000">${t.has_disease?t.disease:'FDI '+t.fdi}</span>`;
     return `<div class="tbox ${t.has_disease?'disease':''}" data-det="${t.det_idx??''}" style="${style}" onclick="${onclick}">${tag}</div>`;
   }).join("");
-  $("#stage").innerHTML = `<img class="base" src="${D.image}"><div id="masklayer"></div>${boxes}`;
+  $("#stage").innerHTML = `<img class="base" src="${D.overview}"><div id="masklayer"></div>${boxes}`;
 }
 
 function clickHealthy(fdi){
