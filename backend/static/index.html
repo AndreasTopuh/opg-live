@@ -48,10 +48,10 @@
   <div>
     <section class="card">
       <h2>1 · Upload OPG</h2>
-      <label class="drop" id="drop">
-        <input type="file" id="file" accept="image/*" hidden>
+      <div class="drop" id="drop">
         <div>Click or drop a panoramic image</div>
-      </label>
+      </div>
+      <input type="file" id="file" accept="image/*" style="display:none">
       <p class="muted" id="status"></p>
     </section>
     <section class="card" style="margin-top:18px">
@@ -85,8 +85,10 @@ const BORDER = {Impacted:"#00f", Caries:"#0ff", "Periapical Lesion":"#ff0", "Dee
 let D = null;  // analyze result
 const $ = s => document.querySelector(s);
 
+// single trigger only (the old <label> wrapper + this .click() opened the
+// file dialog twice — that double-prompt broke uploads, esp. on Safari).
 $("#drop").onclick = () => $("#file").click();
-$("#file").onchange = e => upload(e.target.files[0]);
+$("#file").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if(f) upload(f); };
 $("#drop").ondragover = e => e.preventDefault();
 $("#drop").ondrop = e => { e.preventDefault(); upload(e.dataTransfer.files[0]); };
 
