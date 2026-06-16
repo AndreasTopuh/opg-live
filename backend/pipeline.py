@@ -35,6 +35,23 @@ def _png_b64(img_bgr):
     return "data:image/png;base64," + base64.b64encode(buf).decode()
 
 
+def _compose_view(img_bgr, dets, arm):
+    """Whole-image rendering of ALL lesions for one grounding arm (no text).
+    Mirrors the 3-arm artifacts: bbox = boxes only, mask = SAM masks only,
+    hybrid = box + mask. Colours are per-class (COLORS)."""
+    out = img_bgr.copy()
+    if arm in ("mask", "hybrid"):
+        ov = img_bgr.copy()
+        for d in dets:
+            ov[d["mask"] > 0] = COLORS.get(d["cls"], (0, 255, 0))
+        out = cv2.addWeighted(ov, 0.45, img_bgr, 0.55, 0)
+    if arm in ("bbox", "hybrid"):
+        for d in dets:
+            x0, y0, x1, y1 = d["bbox"]
+            cv2.rectangle(out, (x0, y0), (x1, y1), COLORS.get(d["cls"], (0, 255, 0)), 2)
+    return out
+
+
 class OPGPipeline:
     def __init__(self, drive, conf=0.3, imgsz=1024, device=None):
         from ultralytics import YOLO
@@ -121,8 +138,17 @@ class OPGPipeline:
         _CACHE[aid] = {"img": img_bgr, "dets": dets}
         findings = [{"idx": d["idx"], "disease": d["disease"], "fdi": d["fdi"],
                      "conf": d["conf"], "bbox": d["bbox"]} for d in dets]
+        # whole-image renderings the UI can toggle between (3-arm + raw + overview)
+        views = {
+            "raw": _png_b64(img_bgr),
+            "bbox": _png_b64(_compose_view(img_bgr, dets, "bbox")),
+            "mask": _png_b64(_compose_view(img_bgr, dets, "mask")),
+            "hybrid": _png_b64(_compose_view(img_bgr, dets, "hybrid")),
+            "overview": _png_b64(ov),
+        }
         return {"id": aid, "image": _png_b64(img_bgr), "width": W, "height": H,
-                "teeth": tooth_regions, "overview": _png_b64(ov), "findings": findings}
+                "teeth": tooth_regions, "overview": _png_b64(ov),
+                "views": views, "findings": findings}
 
     # ---------- Stage 2 view: segment one clicked tooth ----------
     def segment(self, aid, idx):

@@ -37,6 +37,9 @@
   .metrics{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px}.metrics b{display:block;font-size:18px}
   .grid2{display:grid;grid-template-columns:2.4fr 1fr;gap:14px;align-items:start;margin-top:8px}
   .hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .toolbar button{padding:5px 12px;font-size:12px}
+  .toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -64,6 +67,14 @@
     <h2><span id="vtitle">Viewer</span></h2>
     <div class="grid2">
       <div>
+        <div class="toolbar" id="toolbar" style="display:none">
+          <button data-mode="overview" onclick="setMode('overview')" class="on">Overview</button>
+          <button data-mode="bbox" onclick="setMode('bbox')">BBox</button>
+          <button data-mode="mask" onclick="setMode('mask')">Mask</button>
+          <button data-mode="hybrid" onclick="setMode('hybrid')">Hybrid</button>
+          <button data-mode="hide" onclick="setMode('hide')">Hide</button>
+          <button data-mode="tooth" onclick="setMode('tooth')">Per tooth</button>
+        </div>
         <div id="stage"><p class="muted" style="line-height:1.5">Result appears here.</p></div>
         <p class="hint" id="hint"></p>
         <div class="legend" id="legend" style="display:none">
@@ -114,22 +125,46 @@ function renderFindings(){
     : '<p class="muted">No lesions detected.</p>';
 }
 
-// interactive view: the SAM-segmented overview (masks + clean labels baked in
-// server-side) as the base, with transparent clickable hotspots on top.
-function resetView(){
-  $("#vtitle").textContent = "Segmented OPG — hover/click a tooth";
-  $("#side").innerHTML = "";
-  $("#hint").textContent = "All lesions already segmented by SAM. Hover a tooth to outline it, click for zoom & metrics.";
+// ---- view modes: overview / bbox / mask / hybrid / hide / per-tooth ----
+let MODE = "overview";
+
+function resetView(){ setMode("overview"); }   // default after upload + "Overview" button
+
+function setMode(m){
+  MODE = m;
+  $("#toolbar").style.display = "flex";
+  document.querySelectorAll("#toolbar button").forEach(b=>b.classList.toggle("on", b.dataset.mode===m));
   $("#legend").style.display = "flex";
-  const pct = (v,t)=> (v/t*100)+"%";
-  const boxes = D.teeth.map(t=>{
+
+  if(m === "tooth"){
+    $("#vtitle").textContent = "Per tooth — hover & click";
+    $("#hint").textContent = "Click a tooth → lesion shows its SAM mask + metrics; a healthy tooth shows no mask.";
+    $("#stage").innerHTML = `<img class="base" src="${D.views.raw}"><div id="masklayer"></div>${toothBoxes()}`;
+    return;
+  }
+  const v = D.views;
+  const src   = {overview:v.overview, bbox:v.bbox, mask:v.mask, hybrid:v.hybrid, hide:v.raw}[m];
+  const title = {overview:"Overview — masks + FDI labels", bbox:"BBox arm — boxes only",
+                 mask:"Mask arm — SAM masks only", hybrid:"Hybrid arm — box + mask",
+                 hide:"Original OPG — overlay hidden"}[m];
+  $("#vtitle").textContent = title;
+  $("#hint").textContent = m === "hide"
+    ? "Segmentation hidden. BBox / Mask / Hybrid show the 3 grounding conditions; Per tooth is interactive."
+    : "Whole-image rendering of all detected lesions.";
+  $("#side").innerHTML = "";
+  $("#stage").innerHTML = `<img class="base" src="${src}">`;
+}
+
+// transparent clickable hotspots (per-tooth mode only)
+function toothBoxes(){
+  const pct = (val,t)=> (val/t*100)+"%";
+  return D.teeth.map(t=>{
     const [x0,y0,x1,y1]=t.box, col = t.has_disease?BORDER[t.disease]||"#0f0":"#999";
     const style = `left:${pct(x0,D.width)};top:${pct(y0,D.height)};width:${pct(x1-x0,D.width)};height:${pct(y1-y0,D.height)};`;
     const onclick = t.has_disease?`clickDisease(${t.det_idx})`:`clickHealthy('${t.fdi}')`;
     const tag = `<span class="tag" style="background:${col};color:#000">${t.has_disease?t.disease:'FDI '+t.fdi}</span>`;
     return `<div class="tbox ${t.has_disease?'disease':''}" data-det="${t.det_idx??''}" style="${style}" onclick="${onclick}">${tag}</div>`;
   }).join("");
-  $("#stage").innerHTML = `<img class="base" src="${D.overview}"><div id="masklayer"></div>${boxes}`;
 }
 
 function clickHealthy(fdi){
@@ -139,6 +174,7 @@ function clickHealthy(fdi){
 }
 
 async function clickDisease(detIdx){
+  if(MODE !== "tooth") setMode("tooth");   // ensure hotspots + #masklayer exist
   document.querySelectorAll(".finding,.tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
   document.querySelectorAll(".finding").forEach(b=>b.classList.toggle("active", b.dataset.det==detIdx));
   $("#vtitle").textContent = "Segmenting…";
