@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,341 +7,502 @@
 <meta http-equiv="Pragma" content="no-cache">
 <title>OPG-Live · MVP</title>
 <style>
-  :root{--bg:#f7f4ee;--card:#fff;--ink:#1c1a17;--muted:#6b6459;--line:#e6e0d6;--accent:#7c5cff;}
+  :root{--bg:#f4f1ea;--card:#fff;--ink:#1c1a17;--muted:#6b6459;--line:#e7e1d6;--accent:#7c5cff;--accent2:#efeaff;}
   *{box-sizing:border-box}
-  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
-  header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
-  header h1{font-size:20px;margin:0;font-weight:700}
-  header .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
-  main{max-width:1340px;margin:0 auto;padding:24px 28px;display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
-  .card h2{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
-  .drop{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--muted);cursor:pointer;display:block}
+  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;font-size:14px}
+  button{font:inherit;cursor:pointer}
+  .layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+
+  /* ---- sidebar ---- */
+  .sidebar{background:#fff;border-right:1px solid var(--line);padding:20px 16px;display:flex;flex-direction:column;gap:6px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:18px;padding:6px 8px 18px}
+  .nav{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);font-weight:500}
+  .nav.on{background:var(--accent2);color:var(--accent)}
+  .nav .ic{width:18px;text-align:center}
+  .help{margin-top:auto;background:var(--accent2);border-radius:12px;padding:14px;font-size:12px;color:var(--accent)}
+  .ver{font-size:11px;color:var(--muted);padding:10px 8px 0}
+
+  /* ---- app ---- */
+  .app{display:flex;flex-direction:column;min-width:0}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 26px;border-bottom:1px solid var(--line);background:#fff}
+  .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--accent);font-weight:600}
+  .prof{display:flex;align-items:center;gap:9px}
+  .prof .av{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .prof small{display:block;color:var(--muted);font-size:11px}
+
+  .content{padding:22px 26px;display:grid;grid-template-columns:300px minmax(0,1fr) 350px;gap:18px;align-items:start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{font-size:14px;margin:0 0 12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .sub{font-size:12px;color:var(--muted)}
+  .muted{color:var(--muted)}
+
+  /* upload */
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:22px 14px;text-align:center;color:var(--muted);cursor:pointer}
   .drop:hover{border-color:var(--accent);color:var(--ink)}
-  .finding{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin-bottom:7px;cursor:pointer;transition:.12s}
-  .finding:hover,.finding.active{border-color:var(--accent);background:#faf8ff}
-  .finding .dx{font-weight:600;font-size:14px}.finding .meta{font-size:12px;color:var(--muted)}
-  button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
-  .muted{color:var(--muted);font-size:13px}
-  /* interactive stage + pan/zoom canvas */
+  .drop .cloud{font-size:26px}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:9px 14px;font-weight:600;width:100%;margin-top:12px}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);width:auto;margin:0}
+  .filecard{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:12px}
+  .filecard img{width:42px;height:42px;border-radius:7px;object-fit:cover;background:#000}
+  .filecard .ok{margin-left:auto;color:#16a34a;font-size:18px}
+
+  /* findings list */
+  .frow{display:flex;align-items:center;gap:9px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px}
+  .frow:last-child{border:none}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .frow b{margin-left:auto}
+
+  /* toolbar */
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar button{padding:6px 13px;font-size:12px;border:1px solid var(--line);background:#fff;border-radius:999px;color:var(--muted);font-weight:600}
+  .toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  /* stage + zoom */
   #stagewrap{position:relative}
-  #stage{position:relative;display:block;width:100%;min-height:300px;line-height:0;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#eee9e0;cursor:grab;touch-action:none}
+  #stage{position:relative;display:block;width:100%;min-height:320px;line-height:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0d0d0d;cursor:grab;touch-action:none}
   #stage.grabbing{cursor:grabbing}
   #zoomwrap{position:relative;transform-origin:0 0;will-change:transform;line-height:0}
   #stage img.base,#stage img.mask{width:100%;display:block}
   #stage img.mask{position:absolute;inset:0;pointer-events:none}
-  #zoomctl{position:absolute;top:10px;right:10px;display:none;flex-direction:column;gap:6px;z-index:6}
-  #zoomctl button{width:34px;height:34px;padding:0;font-size:17px;line-height:1;background:#fffdf8ee;border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 4px #0002;cursor:pointer}
-  /* transparent hotspots: outline + tag only on hover/selection so the baked
-     SAM overview stays clean and uncluttered (no always-on boxes/labels). */
+  #stage .ph{color:#aaa;padding:40px;line-height:1.5;text-align:center}
   .tbox{position:absolute;border:2px solid transparent;border-radius:3px;cursor:pointer;transition:.1s;background:transparent}
-  .tbox:hover{border-color:var(--accent);background:rgba(124,92,255,.12)}
+  .tbox:hover{border-color:var(--accent);background:rgba(124,92,255,.14)}
   .tbox.sel{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)}
-  .tbox .tag{position:absolute;top:-17px;left:0;font-size:10px;background:#000a;color:#fff;padding:0 4px;border-radius:3px;white-space:nowrap;line-height:1.4;display:none}
+  .tbox .tag{position:absolute;top:-17px;left:0;font-size:10px;background:#000a;color:#fff;padding:0 4px;border-radius:3px;white-space:nowrap;display:none}
   .tbox:hover .tag,.tbox.sel .tag{display:block}
-  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:10px}
-  .legend span{display:inline-flex;align-items:center;gap:5px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
-  .metrics{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px}.metrics b{display:block;font-size:18px}
-  #viewergrid{display:grid;grid-template-columns:1fr;gap:14px;align-items:start;margin-top:8px}
-  #viewergrid.withside{grid-template-columns:2.4fr 1fr}
-  .hint{font-size:12px;color:var(--muted);margin:8px 0 0}
-  .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-  .toolbar button{padding:5px 12px;font-size:12px}
-  .toolbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-  /* ---- analysis modal (AI-agent style step loader) ---- */
+  #zoomctl{position:absolute;top:10px;right:10px;display:none;flex-direction:column;gap:7px;z-index:6}
+  #zoomctl button{width:36px;height:36px;padding:0;font-size:17px;line-height:1;background:#fffffff2;border:1px solid var(--line);border-radius:9px;box-shadow:0 1px 5px #0003}
+  #rmark{position:absolute;left:12px;bottom:10px;color:#fff;font-weight:700;font-size:13px;z-index:4;text-shadow:0 1px 3px #000}
+
+  /* numbering chart */
+  .chart{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+  .crow{display:grid;grid-template-columns:repeat(16,1fr);gap:5px}
+  .tnum{border:1px solid var(--line);border-radius:7px;padding:5px 0;text-align:center;font-size:11px;color:var(--muted);position:relative;background:#fff}
+  .tnum.none{opacity:.4}
+  .tnum.dz{cursor:pointer;color:var(--ink);font-weight:700;border-color:#d9cfff}
+  .tnum.dz:hover{background:var(--accent2)}
+  .tnum.sel{outline:2px solid var(--accent)}
+  .tnum .tdot{display:block;width:6px;height:6px;border-radius:50%;margin:3px auto 0}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}.sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  /* summary */
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .stat{border:1px solid var(--line);border-radius:11px;padding:12px}
+  .stat b{font-size:24px;display:block}
+  .stat small{color:var(--muted);font-size:11px}
+
+  /* detail panel */
+  #detail .empty{color:var(--muted);text-align:center;padding:40px 10px;font-size:13px}
+  .badge{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:600}
+  .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:12px 0}
+  .mcell{background:#fff;padding:11px}
+  .mcell small{color:var(--muted);font-size:11px;display:block}
+  .mcell b{font-size:17px}
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin:6px 0 12px;font-size:12px;overflow-x:auto}
+  .tab{padding:7px 10px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap;cursor:pointer}
+  .tab.on{color:var(--accent);border-color:var(--accent)}
+  .mock{font-size:10px;background:#fff3cd;color:#92750a;border:1px solid #f5e3a3;border-radius:999px;padding:1px 7px;font-weight:600}
+  .tabbody h4{margin:14px 0 4px;font-size:13px}
+  .tabbody p{margin:0 0 8px;font-size:12.5px;color:#4a443b}
+  .tabbody ol{margin:4px 0;padding-left:18px;font-size:12.5px;color:#4a443b}
+
+  /* loader modal */
   #loader{position:fixed;inset:0;background:rgba(28,26,23,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50}
   #loader.show{display:flex}
-  .loader-card{background:#fff;border-radius:16px;padding:26px 30px;width:min(420px,92vw);box-shadow:0 20px 60px #0003;animation:pop .25s ease}
+  .loader-card{background:#fff;border-radius:16px;padding:24px 28px;width:min(420px,92vw);box-shadow:0 20px 60px #0003;animation:pop .25s ease}
   @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
   .loader-card h3{margin:0 0 4px;font-size:17px;display:flex;align-items:center;gap:9px}
-  .loader-card .sub{font-size:12px;color:var(--muted);margin:0 0 16px}
+  .loader-card .s{font-size:12px;color:var(--muted);margin:0 0 14px}
   .dots{display:inline-flex;gap:3px;margin-left:2px}
   .dots i{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 1s infinite}
   .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
   .steps{list-style:none;margin:0;padding:0}
-  .step{display:flex;align-items:center;gap:11px;padding:8px 0;font-size:14px;color:var(--muted);opacity:.5;transition:.25s}
-  .step.active,.step.done{opacity:1;color:var(--ink)}
-  .step.active{font-weight:600}
+  .step{display:flex;align-items:center;gap:11px;padding:7px 0;font-size:14px;color:var(--muted);opacity:.5;transition:.25s}
+  .step.active,.step.done{opacity:1;color:var(--ink)}.step.active{font-weight:600}
   .step .ic{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;position:relative;box-sizing:border-box}
   .step.active .ic{border-color:var(--accent);border-top-color:transparent;animation:spin .7s linear infinite}
-  .step.done .ic{border-color:#19a974;background:#19a974;animation:none}
+  .step.done .ic{border-color:#16a34a;background:#16a34a;animation:none}
   .step.done .ic::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
   @keyframes spin{to{transform:rotate(360deg)}}
-  #loaderNote{font-size:12px;color:var(--muted);margin-top:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  #loaderNote{font-size:12px;color:var(--muted);margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  @media(max-width:1100px){.content{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <div id="loader">
   <div class="loader-card">
-    <h3>🦷 Analyzing OPG <span class="dots"><i></i><i></i><i></i></span></h3>
-    <p class="sub">Stage 1 → Stage 2 pipeline running on the server</p>
+    <h3>🦷 Menganalisis OPG <span class="dots"><i></i><i></i><i></i></span></h3>
+    <p class="s">Pipeline Stage 1 → Stage 2 berjalan di server</p>
     <ul class="steps" id="steps"></ul>
     <p id="loaderNote"></p>
   </div>
 </div>
-<header>
-  <h1>🦷 OPG-Live</h1>
-  <span class="tag">MVP · click a tooth to segment</span>
-</header>
-<main>
-  <div>
-    <section class="card">
-      <h2>1 · Upload OPG</h2>
-      <div class="drop" id="drop">
-        <div>Click or drop a panoramic image</div>
-      </div>
-      <input type="file" id="file" accept="image/*" style="display:none">
-      <p class="muted" id="status"></p>
-    </section>
-    <section class="card" style="margin-top:18px">
-      <h2>Findings <button onclick="resetView()">▦ Overview</button></h2>
-      <div id="findings"><p class="muted">Upload an OPG to detect lesions.</p></div>
-    </section>
-  </div>
 
-  <section class="card">
-    <h2><span id="vtitle">Viewer</span></h2>
-    <div class="grid2" id="viewergrid">
-      <div>
-        <div class="toolbar" id="toolbar" style="display:none">
-          <button data-mode="overview" onclick="setMode('overview')" class="on">Overview</button>
-          <button data-mode="bbox" onclick="setMode('bbox')">BBox</button>
-          <button data-mode="mask" onclick="setMode('mask')">Mask</button>
-          <button data-mode="hybrid" onclick="setMode('hybrid')">Hybrid</button>
-          <button data-mode="hide" onclick="setMode('hide')">Hide</button>
-          <button data-mode="tooth" onclick="setMode('tooth')">Per tooth</button>
-        </div>
-        <div id="stagewrap">
-          <div id="stage"><p class="muted" style="line-height:1.5">Result appears here.</p></div>
-          <div id="zoomctl">
-            <button onclick="zoomBy(1.25)" title="Zoom in">＋</button>
-            <button onclick="zoomBy(0.8)" title="Zoom out">－</button>
-            <button onclick="resetZoom()" title="Reset view">⟲</button>
-          </div>
-        </div>
-        <p class="hint" id="hint"></p>
-        <div class="legend" id="legend" style="display:none">
-          <span><i class="sw" style="background:#00f"></i>Impacted</span>
-          <span><i class="sw" style="background:#0ff"></i>Caries</span>
-          <span><i class="sw" style="background:#ff0"></i>Periapical</span>
-          <span><i class="sw" style="background:#0f0"></i>Deep Caries</span>
-          <span><i class="sw" style="background:#999"></i>healthy tooth (click)</span>
-        </div>
+<div class="layout">
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <div class="brand">🦷 OPG-Live</div>
+    <div class="nav on"><span class="ic">▦</span> Dashboard</div>
+    <div class="nav"><span class="ic">⤓</span> Upload &amp; Analisis</div>
+    <div class="nav"><span class="ic">☻</span> Pasien</div>
+    <div class="nav"><span class="ic">↺</span> Riwayat</div>
+    <div class="nav"><span class="ic">▤</span> Laporan</div>
+    <div class="nav"><span class="ic">⚙</span> Pengaturan</div>
+    <div class="help"><b>Butuh bantuan?</b><br>Lihat panduan penggunaan ↗</div>
+    <div class="ver">OPG-Live v2.0.0 · MVP</div>
+  </aside>
+
+  <!-- app -->
+  <div class="app">
+    <header class="topbar">
+      <strong>Dashboard</strong>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span class="pill">✦ OPG-Live AI</span>
+        <div class="prof"><div class="av">A</div><div><b style="font-size:13px">OPG-Live</b><small>Decision Support</small></div></div>
       </div>
-      <div id="side"></div>
+    </header>
+
+    <div class="content">
+      <!-- COLUMN 1 -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <section class="card">
+          <h2>1 · Upload OPG <span class="sub">ⓘ</span></h2>
+          <div class="drop" id="drop">
+            <div class="cloud">⤒</div>
+            <div>Klik atau drag &amp; drop file OPG di sini</div>
+            <div class="sub">Format: JPG, PNG</div>
+            <button class="btn" type="button">Pilih File</button>
+          </div>
+          <input type="file" id="file" accept="image/*" style="display:none">
+          <div id="filecard"></div>
+          <p class="sub" id="status" style="margin:10px 0 0"></p>
+        </section>
+
+        <section class="card">
+          <h2>Temuan AI <span class="sub">(Ringkasan)</span></h2>
+          <div id="findings"><p class="sub">Upload OPG untuk mendeteksi lesi.</p></div>
+        </section>
+      </div>
+
+      <!-- COLUMN 2 -->
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+        <section class="card">
+          <h2><span id="vtitle">2 · Hasil Segmentasi AI</span></h2>
+          <div class="toolbar" id="toolbar" style="display:none">
+            <button data-mode="overview" onclick="setMode('overview')" class="on">Overview</button>
+            <button data-mode="bbox" onclick="setMode('bbox')">BBox</button>
+            <button data-mode="mask" onclick="setMode('mask')">Mask</button>
+            <button data-mode="hybrid" onclick="setMode('hybrid')">Hybrid</button>
+            <button data-mode="hide" onclick="setMode('hide')">Hide</button>
+            <button data-mode="tooth" onclick="setMode('tooth')">Per tooth</button>
+          </div>
+          <div id="stagewrap">
+            <div id="stage"><p class="ph">Hasil segmentasi muncul di sini setelah upload.</p></div>
+            <div id="rmark" style="display:none">R</div>
+            <div id="zoomctl">
+              <button onclick="zoomBy(1.25)" title="Zoom in">＋</button>
+              <button onclick="zoomBy(0.8)" title="Zoom out">－</button>
+              <button onclick="resetZoom()" title="Reset">⟲</button>
+            </div>
+          </div>
+          <p class="sub" id="hint" style="margin:8px 0 0"></p>
+          <div class="chart" id="chart"></div>
+          <div class="legend" id="legend" style="display:none">
+            <span><i class="sw" style="background:#2563eb"></i>Impacted</span>
+            <span><i class="sw" style="background:#06b6d4"></i>Caries</span>
+            <span><i class="sw" style="background:#eab308"></i>Periapical</span>
+            <span><i class="sw" style="background:#22c55e"></i>Deep Caries</span>
+            <span><i class="sw" style="background:#cbd5c0"></i>Gigi sehat</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>3 · Ringkasan Analisis <button class="btn ghost" onclick="exportReport()">⤓ Export Laporan</button></h2>
+          <div class="stats" id="stats">
+            <div class="stat"><b>–</b><small>Total Gigi</small></div>
+            <div class="stat"><b>–</b><small>Impacted</small></div>
+            <div class="stat"><b>–</b><small>Caries</small></div>
+            <div class="stat"><b>–</b><small>Periapical</small></div>
+            <div class="stat"><b>–</b><small>Gigi Sehat</small></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- COLUMN 3: detail -->
+      <section class="card" id="detail">
+        <h2>Detail Gigi <span id="dclose" class="sub" style="cursor:pointer;display:none" onclick="closeDetail()">✕</span></h2>
+        <div id="detailbody"><div class="empty">Klik gigi pada gambar atau penomoran untuk melihat detail segmentasi.</div></div>
+      </section>
     </div>
-  </section>
-</main>
+  </div>
+</div>
 
 <script>
 const API = "";
-const BORDER = {Impacted:"#00f", Caries:"#0ff", "Periapical Lesion":"#ff0", "Deep Caries":"#0f0"};
-let D = null;  // analyze result
+const BORDER = {Impacted:"#2563eb", Caries:"#06b6d4", "Periapical Lesion":"#eab308", "Deep Caries":"#22c55e"};
+let D = null, _file = null;
 const $ = s => document.querySelector(s);
 
-// single trigger only (the old <label> wrapper + this .click() opened the
-// file dialog twice — that double-prompt broke uploads, esp. on Safari).
+const UPPER = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
+const LOWER = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+
+/* ---------- upload ---------- */
 $("#drop").onclick = () => $("#file").click();
-$("#file").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if(f) upload(f); };
+$("#file").onchange = e => { const f = e.target.files[0]; e.target.value=""; if(f) upload(f); };
 $("#drop").ondragover = e => e.preventDefault();
 $("#drop").ondrop = e => { e.preventDefault(); upload(e.dataTransfer.files[0]); };
 
-// ---- analysis modal: steps mirror the real Stage 1->2 pipeline ----
-// durations weighted so DETECTION and SAM SEGMENTATION visibly dominate the
-// animation (the heavy stages), so the work reads as genuinely happening.
-const STEPS = [
-  ["read",    "Reading panoramic image", 600],
-  ["det",     "Detecting lesions · YOLOv8", 2400],
-  ["enum",    "Enumerating teeth (FDI) · YOLOv8", 1300],
-  ["seg",     "Segmenting masks · SAM + adapter", 2800],
-  ["compose", "Composing views & overview", 900],
-];
-let _stepTimer = null, _loaderDone = false, _curStep = 0;
-
-function _setStep(i, state){
-  const el = document.getElementById("st-"+STEPS[i][0]);
-  if(el) el.className = "step " + state;
-}
-function _tick(){
-  if(_curStep < STEPS.length - 1){
-    _setStep(_curStep, "done"); _curStep++; _setStep(_curStep, "active");
-    _stepTimer = setTimeout(_tick, STEPS[_curStep][2]);
-  } else if(_loaderDone){
-    STEPS.forEach((s, i) => _setStep(i, "done"));
-    setTimeout(() => $("#loader").classList.remove("show"), 450);
-  } else {
-    // animation reached the last step but the response isn't back yet — hold here
-    _stepTimer = setTimeout(_tick, 400);
-  }
-}
-function showLoader(){
-  clearTimeout(_stepTimer); _loaderDone = false; _curStep = 0;
-  $("#steps").innerHTML = STEPS.map(s =>
-    `<li id="st-${s[0]}" class="step"><span class="ic"></span><span>${s[1]}</span></li>`).join("");
-  $("#loaderNote").textContent = "Running detection + SAM segmentation… first run loads the models (30–90s). Please don't re-upload.";
-  $("#loader").classList.add("show");
-  _setStep(0, "active");
-  _stepTimer = setTimeout(_tick, STEPS[0][2]);
-}
-// mark the response as arrived; the step animation still plays through
-// detection + segmentation before the modal closes.
-function finishLoader(){ _loaderDone = true; }
-function errorLoader(msg){
-  clearTimeout(_stepTimer); _loaderDone = true;
-  $("#loaderNote").innerHTML = `<span style="color:#c0392b">⚠️ ${msg}</span>
-    <button onclick="document.getElementById('loader').classList.remove('show')">Close</button>`;
-}
-
 async function upload(f){
   if(!f) return;
+  _file = f;
   showLoader();
-  $("#status").textContent = "⏳ Running YOLOv8 + SAM…";
+  $("#status").textContent = "⏳ Menjalankan YOLOv8 + SAM…";
   const fd = new FormData(); fd.append("file", f);
   try{
     const r = await fetch(API+"/api/analyze",{method:"POST",body:fd});
     let d; try{ d = await r.json(); }catch(e){ d={error:"non-JSON (HTTP "+r.status+")"}; }
-    if(!r.ok||d.error||!d.teeth){
-      const msg = d.error||d.detail||"HTTP "+r.status;
-      errorLoader(msg); $("#status").textContent="❌ "+msg; return;
-    }
+    if(!r.ok||d.error||!d.teeth){ const m=d.error||d.detail||"HTTP "+r.status; errorLoader(m); $("#status").textContent="❌ "+m; return; }
     D = d;
     finishLoader();
-    $("#status").textContent = `✅ ${d.findings.length} lesion(s), ${d.teeth.length} teeth detected.`;
-    renderFindings(); resetView();
-  }catch(e){ errorLoader(e+" — model still loading? wait & retry once"); $("#status").textContent="❌ "+e; }
+    $("#status").textContent = `✅ ${d.findings.length} lesi · ${d.teeth.length} gigi terdeteksi.`;
+    renderFileCard(); renderFindings(); renderStats(); resetView();
+  }catch(e){ errorLoader(e+""); $("#status").textContent="❌ "+e; }
 }
+
+function renderFileCard(){
+  const kb = _file ? (_file.size/1048576).toFixed(1)+" MB" : "";
+  $("#filecard").innerHTML = `<div class="filecard">
+    <img src="${D.views.raw}"><div><b style="font-size:12.5px">${_file?_file.name:"OPG"}</b>
+    <div class="sub">${kb}</div></div><span class="ok">✓</span></div>`;
+}
+
+function count(dis){ return (D.findings||[]).filter(f=>f.disease===dis).length; }
 
 function renderFindings(){
-  $("#findings").innerHTML = D.findings.length
-    ? D.findings.map(f=>`<div class="finding" data-det="${f.idx}" onclick="clickDisease(${f.idx})">
-        <div><span class="dx">${f.disease}</span><span class="meta"> · ${f.fdi?"FDI "+f.fdi:"?"} · ${f.conf}</span></div>
-        <span class="muted">segment →</span></div>`).join("")
-    : '<p class="muted">No lesions detected.</p>';
+  const rows = [
+    ["Impacted", BORDER.Impacted],
+    ["Caries", BORDER.Caries],
+    ["Periapical Lesion", BORDER["Periapical Lesion"]],
+    ["Deep Caries", BORDER["Deep Caries"]],
+  ].map(([d,c])=>`<div class="frow"><i class="dot" style="background:${c}"></i>${d}<b>${count(d)}</b></div>`).join("");
+  const healthy = (D.teeth||[]).filter(t=>!t.has_disease).length;
+  $("#findings").innerHTML = rows +
+    `<div class="frow"><i class="dot" style="background:#cbd5c0"></i>Gigi Sehat<b>${healthy}</b></div>`;
 }
 
-// ---- view modes: overview / bbox / mask / hybrid / hide / per-tooth ----
+function renderStats(){
+  const total = (D.teeth||[]).length, healthy = D.teeth.filter(t=>!t.has_disease).length;
+  const s = [["Total Gigi",total],["Impacted",count("Impacted")],
+             ["Caries",count("Caries")+count("Deep Caries")],
+             ["Periapical",count("Periapical Lesion")],["Gigi Sehat",healthy]];
+  $("#stats").innerHTML = s.map(([l,v])=>`<div class="stat"><b>${v}</b><small>${l}</small></div>`).join("");
+}
+
+/* ---------- numbering chart ---------- */
+function toothByFdi(n){ return (D.teeth||[]).find(t=>String(t.fdi)===String(n)); }
+function chartRow(arr){
+  return arr.map(n=>{
+    const t = toothByFdi(n);
+    if(!t) return `<div class="tnum none"><span>${n}</span></div>`;
+    if(t.has_disease){
+      const c = BORDER[t.disease]||"#22c55e";
+      return `<div class="tnum dz" data-fdi="${n}" onclick="clickDisease(${t.det_idx})"><span>${n}</span><i class="tdot" style="background:${c}"></i></div>`;
+    }
+    return `<div class="tnum" data-fdi="${n}" onclick="clickHealthy('${n}')"><span>${n}</span><i class="tdot" style="background:#cbd5c0"></i></div>`;
+  }).join("");
+}
+function renderChart(){
+  $("#chart").innerHTML = `<div class="crow">${chartRow(UPPER)}</div><div class="crow">${chartRow(LOWER)}</div>`;
+}
+
+/* ---------- view modes ---------- */
 let MODE = "overview";
-
-function resetView(){ setMode("overview"); }   // default after upload + "Overview" button
-
+function resetView(){ setMode("overview"); }
 function setMode(m){
   MODE = m;
   $("#toolbar").style.display = "flex";
   $("#zoomctl").style.display = "flex";
-  document.querySelectorAll("#toolbar button").forEach(b=>b.classList.toggle("on", b.dataset.mode===m));
+  $("#rmark").style.display = "block";
   $("#legend").style.display = "flex";
-  $("#viewergrid").classList.toggle("withside", m === "tooth");   // big stage unless per-tooth
+  document.querySelectorAll("#toolbar button").forEach(b=>b.classList.toggle("on", b.dataset.mode===m));
+  renderChart();
 
   if(m === "tooth"){
-    $("#vtitle").textContent = "Per tooth — hover & click";
-    $("#hint").textContent = "Click a tooth → SAM mask + metrics; healthy tooth = no mask. Scroll to zoom, drag to pan.";
+    $("#vtitle").textContent = "2 · Per Tooth — klik gigi";
+    $("#hint").textContent = "Klik gigi → SAM mask + metrik. Scroll = zoom, klik-kanan + geser = pan.";
     $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${D.views.raw}"><div id="masklayer"></div>${toothBoxes()}</div>`;
-    resetZoom();
-    return;
+    resetZoom(); return;
   }
   const v = D.views;
-  const src   = {overview:v.overview, bbox:v.bbox, mask:v.mask, hybrid:v.hybrid, hide:v.raw}[m];
-  const title = {overview:"Overview — masks + FDI labels", bbox:"BBox arm — boxes only",
-                 mask:"Mask arm — SAM masks only", hybrid:"Hybrid arm — box + mask",
-                 hide:"Original OPG — overlay hidden"}[m];
+  const src = {overview:v.overview, bbox:v.bbox, mask:v.mask, hybrid:v.hybrid, hide:v.raw}[m];
+  const title = {overview:"2 · Hasil Segmentasi AI", bbox:"2 · BBox arm", mask:"2 · Mask arm",
+                 hybrid:"2 · Hybrid arm", hide:"2 · OPG asli"}[m];
   $("#vtitle").textContent = title;
-  $("#hint").textContent = (m === "hide"
-    ? "Segmentation hidden. BBox / Mask / Hybrid show the 3 grounding conditions; Per tooth is interactive."
-    : "Whole-image rendering of all detected lesions.") + " Scroll to zoom, drag to pan.";
-  $("#side").innerHTML = "";
+  $("#hint").textContent = (m==="hide" ? "Overlay disembunyikan." : "Render seluruh lesi.") +
+    " Scroll = zoom, klik-kanan + geser = pan.";
   $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${src}"></div>`;
   resetZoom();
 }
-
-// transparent clickable hotspots (per-tooth mode only)
 function toothBoxes(){
-  const pct = (val,t)=> (val/t*100)+"%";
-  return D.teeth.map(t=>{
-    const [x0,y0,x1,y1]=t.box, col = t.has_disease?BORDER[t.disease]||"#0f0":"#999";
-    const style = `left:${pct(x0,D.width)};top:${pct(y0,D.height)};width:${pct(x1-x0,D.width)};height:${pct(y1-y0,D.height)};`;
+  const pct = (val,t)=>(val/t*100)+"%";
+  return (D.teeth||[]).map(t=>{
+    const [x0,y0,x1,y1]=t.box, col = t.has_disease?BORDER[t.disease]||"#22c55e":"#999";
+    const style=`left:${pct(x0,D.width)};top:${pct(y0,D.height)};width:${pct(x1-x0,D.width)};height:${pct(y1-y0,D.height)};`;
     const onclick = t.has_disease?`clickDisease(${t.det_idx})`:`clickHealthy('${t.fdi}')`;
     const tag = `<span class="tag" style="background:${col};color:#000">${t.has_disease?t.disease:'FDI '+t.fdi}</span>`;
-    return `<div class="tbox ${t.has_disease?'disease':''}" data-det="${t.det_idx??''}" style="${style}" onclick="${onclick}">${tag}</div>`;
+    return `<div class="tbox ${t.has_disease?'dz':''}" data-det="${t.det_idx??''}" style="${style}" onclick="${onclick}">${tag}</div>`;
   }).join("");
 }
 
-// ---- pan/zoom (Google-Maps-style) on the viewer canvas ----
-let _zs = 1, _ztx = 0, _zty = 0, _suppressClick = false;
+/* ---------- pan/zoom ---------- */
+let _zs=1,_ztx=0,_zty=0,_suppressClick=false;
 function _applyZoom(){
-  const w = $("#zoomwrap"); if(!w) return;
-  const st = $("#stage"), W = st.clientWidth, H = st.clientHeight;
-  const minTx = Math.min(0, W - W*_zs), minTy = Math.min(0, H - H*_zs);
-  _ztx = Math.max(minTx, Math.min(0, _ztx));   // clamp so the image can't drift off-canvas
-  _zty = Math.max(minTy, Math.min(0, _zty));
-  w.style.transform = `translate(${_ztx}px,${_zty}px) scale(${_zs})`;
+  const w=$("#zoomwrap"); if(!w) return;
+  const st=$("#stage"),W=st.clientWidth,H=st.clientHeight;
+  _ztx=Math.max(Math.min(0,W-W*_zs),Math.min(0,_ztx));
+  _zty=Math.max(Math.min(0,H-H*_zs),Math.min(0,_zty));
+  w.style.transform=`translate(${_ztx}px,${_zty}px) scale(${_zs})`;
 }
-function resetZoom(){ _zs = 1; _ztx = 0; _zty = 0; _applyZoom(); }
-function _zoomAt(cx, cy, f){
-  const ns = Math.max(1, Math.min(8, _zs*f));
-  _ztx = cx - ((cx - _ztx)/_zs)*ns;            // keep the point under the cursor fixed
-  _zty = cy - ((cy - _zty)/_zs)*ns;
-  _zs = ns; _applyZoom();
+function resetZoom(){_zs=1;_ztx=0;_zty=0;_applyZoom();}
+function _zoomAt(cx,cy,f){
+  const ns=Math.max(1,Math.min(8,_zs*f));
+  _ztx=cx-((cx-_ztx)/_zs)*ns; _zty=cy-((cy-_zty)/_zs)*ns; _zs=ns; _applyZoom();
 }
-function zoomBy(f){ const st = $("#stage"); _zoomAt(st.clientWidth/2, st.clientHeight/2, f); }
+function zoomBy(f){const st=$("#stage");_zoomAt(st.clientWidth/2,st.clientHeight/2,f);}
 function initZoom(){
-  const st = $("#stage");
-  st.addEventListener("wheel", e => {
-    if(!$("#zoomwrap")) return; e.preventDefault();
-    const r = st.getBoundingClientRect();
-    _zoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.15 : 0.87);
-  }, {passive:false});
-  let down = false, sx = 0, sy = 0, moved = false;
-  st.addEventListener("pointerdown", e => {
-    if(!$("#zoomwrap")) return; down = true; moved = false; sx = e.clientX; sy = e.clientY; st.classList.add("grabbing");
+  const st=$("#stage");
+  st.addEventListener("contextmenu",e=>e.preventDefault());   // allow right-drag pan
+  st.addEventListener("wheel",e=>{
+    if(!$("#zoomwrap"))return; e.preventDefault();
+    const r=st.getBoundingClientRect(); _zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.15:0.87);
+  },{passive:false});
+  let down=false,btn=0,sx=0,sy=0,moved=false;
+  st.addEventListener("pointerdown",e=>{
+    if(!$("#zoomwrap"))return; down=true; btn=e.button; moved=false; sx=e.clientX; sy=e.clientY;
+    st.classList.add("grabbing"); st.setPointerCapture&&st.setPointerCapture(e.pointerId);
   });
-  st.addEventListener("pointermove", e => {
-    if(!down) return; const dx = e.clientX - sx, dy = e.clientY - sy;
-    if(moved || Math.abs(dx) + Math.abs(dy) > 4){ moved = true; _ztx += dx; _zty += dy; sx = e.clientX; sy = e.clientY; _applyZoom(); }
+  st.addEventListener("pointermove",e=>{
+    if(!down)return; const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(moved||Math.abs(dx)+Math.abs(dy)>4){moved=true;_ztx+=dx;_zty+=dy;sx=e.clientX;sy=e.clientY;_applyZoom();}
   });
-  const end = () => {
-    if(!down) return; down = false; st.classList.remove("grabbing");
-    if(moved){ _suppressClick = true; setTimeout(() => { _suppressClick = false; }, 60); }  // a drag must not fire a tooth click
-  };
-  st.addEventListener("pointerup", end);
-  st.addEventListener("pointerleave", end);
+  const end=()=>{ if(!down)return; down=false; st.classList.remove("grabbing");
+    if(moved||btn===2){_suppressClick=true; setTimeout(()=>{_suppressClick=false;},60);} };
+  st.addEventListener("pointerup",end);
+  st.addEventListener("pointerleave",end);
 }
 
+/* ---------- tooth detail ---------- */
+function closeDetail(){
+  $("#dclose").style.display="none";
+  $("#detailbody").innerHTML = `<div class="empty">Klik gigi pada gambar atau penomoran untuk melihat detail segmentasi.</div>`;
+  document.querySelectorAll(".tbox,.tnum").forEach(b=>b.classList.remove("sel"));
+}
 function clickHealthy(fdi){
   if(_suppressClick) return;
-  $("#vtitle").textContent = `FDI ${fdi} — healthy`;
-  $("#side").innerHTML = `<p class="muted">No pathology detected on this tooth — no mask.</p>`;
-  document.querySelectorAll(".tbox").forEach(b=>b.classList.remove("sel"));
+  selectChips(fdi, null);
+  $("#dclose").style.display="inline";
+  $("#detailbody").innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <b>Gigi ${fdi} (FDI ${fdi})</b><span class="badge" style="background:#e8f5e9;color:#16a34a">Sehat</span></div>
+    <p class="sub">Tidak ada patologi terdeteksi pada gigi ini — tidak ada mask.</p>`;
 }
-
 async function clickDisease(detIdx){
-  if(_suppressClick) return;               // ignore the click that ends a pan-drag
-  if(MODE !== "tooth") setMode("tooth");   // ensure hotspots + #masklayer exist
-  document.querySelectorAll(".finding,.tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
-  document.querySelectorAll(".finding").forEach(b=>b.classList.toggle("active", b.dataset.det==detIdx));
-  $("#vtitle").textContent = "Segmenting…";
+  if(_suppressClick) return;
+  if(MODE!=="tooth") setMode("tooth");
+  document.querySelectorAll(".tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
+  $("#dclose").style.display="inline";
+  $("#detailbody").innerHTML = `<p class="sub">Segmentasi SAM berjalan…</p>`;
   try{
     const r = await fetch(API+"/api/segment",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({id:D.id, idx:detIdx})});
     const d = await r.json();
-    if(d.error){ $("#vtitle").textContent="Segment failed"; $("#side").innerHTML=`<p class="muted">⚠️ ${d.error}</p>`; return; }
-    $("#vtitle").textContent = `${d.disease}${d.fdi?" · FDI "+d.fdi:""}`;
-    // overlay the transparent mask in-place over the raw image
-    const ml = $("#masklayer");
-    if(ml) ml.innerHTML = `<img class="mask" src="${d.overlay}">`;
-    $("#side").innerHTML = `
-      <img src="${d.crop}" style="width:100%;border-radius:8px;border:1px solid var(--line)">
-      <p class="muted" style="text-align:center;margin:4px 0">zoom</p>
-      <div class="metrics" style="flex-direction:column;gap:8px">
-        <span>tooth (FDI)<b>${d.fdi||"?"}</b></span>
-        <span>detector conf<b>${d.conf}</b></span>
-        <span>mask area (px)<b>${d.mask_area_px.toLocaleString()}</b></span>
-        <span>SAM score<b>${d.sam_score}</b></span>
-      </div>`;
-  }catch(e){
-    $("#vtitle").textContent = "Segment error";
-    $("#side").innerHTML = `<p class="muted">⚠️ ${e} — server may still be loading or stopped. Retry once.</p>`;
-  }
+    if(d.error){ $("#detailbody").innerHTML=`<p class="sub">⚠️ ${d.error}</p>`; return; }
+    selectChips(d.fdi, detIdx);
+    const ml=$("#masklayer"); if(ml) ml.innerHTML = `<img class="mask" src="${d.overlay}">`;
+    renderDetail(d);
+  }catch(e){ $("#detailbody").innerHTML=`<p class="sub">⚠️ ${e} — server masih loading? coba ulang.</p>`; }
+}
+function selectChips(fdi, detIdx){
+  document.querySelectorAll(".tnum").forEach(b=>b.classList.toggle("sel", b.dataset.fdi==fdi));
+  if(detIdx!=null) document.querySelectorAll(".tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
+}
+
+let _detTab = "overview";
+function renderDetail(d){
+  const col = BORDER[d.disease]||"#22c55e";
+  $("#detailbody").innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <b>Gigi ${d.fdi||"?"} (FDI ${d.fdi||"?"})</b>
+      <span class="badge" style="background:${col}22;color:${col}">${d.disease}</span>
+    </div>
+    <div class="mgrid">
+      <div class="mcell"><small>tooth (FDI)</small><b>${d.fdi||"?"}</b></div>
+      <div class="mcell"><small>detector conf</small><b>${d.conf}</b></div>
+      <div class="mcell"><small>mask area (px)</small><b>${(d.mask_area_px||0).toLocaleString()}</b></div>
+      <div class="mcell"><small>SAM score</small><b>${d.sam_score}</b></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="tabs" id="tabs">
+        <div class="tab" data-t="overview" onclick="detTab('overview')">Overview</div>
+        <div class="tab" data-t="ai" onclick="detTab('ai')">AI Explanation</div>
+        <div class="tab" data-t="rec" onclick="detTab('rec')">Rekomendasi</div>
+        <div class="tab" data-t="ref" onclick="detTab('ref')">Referensi</div>
+      </div>
+    </div>
+    <div class="tabbody" id="tabbody"></div>`;
+  detTab(_detTab);
+}
+function detTab(t){
+  _detTab = t;
+  document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on", x.dataset.t===t));
+  const mock = `<span class="mock">MOCKUP · LLM belum aktif</span>`;
+  const body = {
+    overview: `<h4>Temuan Radiografis</h4><p>Metrik di atas (FDI, detector confidence, luas mask, SAM score) berasal dari pipeline nyata Stage 1 (YOLOv8) + Stage 2 (SAM + adapter).</p>`,
+    ai: `<h4>Interpretasi AI (LLM + RAG) ${mock}</h4><p>Penjelasan tekstual GPT-4o + RAG akan tampil di sini setelah Stage 3 diaktifkan.</p>`,
+    rec: `<h4>Rekomendasi ${mock}</h4><p>Saran tindak lanjut klinis akan dihasilkan oleh Stage 3.</p>`,
+    ref: `<h4>Sumber Referensi (RAG) ${mock}</h4><ol><li>ADA Caries Classification System</li><li>ICCMS / ICDAS Guidelines</li><li>AAE Endodontic Diagnosis</li></ol>`,
+  }[t];
+  $("#tabbody").innerHTML = body;
+}
+
+function exportReport(){
+  if(!D){ alert("Belum ada hasil analisis."); return; }
+  alert("Export laporan: fitur mockup (Stage 3/laporan PDF belum diaktifkan).");
+}
+
+/* ---------- loader (cepat untuk SageMaker) ---------- */
+const STEPS = [
+  ["read","Membaca citra panoramik",250],
+  ["det","Deteksi lesi · YOLOv8",700],
+  ["enum","Penomoran gigi (FDI) · YOLOv8",400],
+  ["seg","Segmentasi mask · SAM + adapter",800],
+  ["compose","Menyusun overview",300],
+];
+let _stepTimer=null,_loaderDone=false,_curStep=0;
+function _setStep(i,s){ const el=document.getElementById("st-"+STEPS[i][0]); if(el) el.className="step "+s; }
+function _tick(){
+  if(_curStep < STEPS.length-1){
+    _setStep(_curStep,"done"); _curStep++; _setStep(_curStep,"active");
+    _stepTimer=setTimeout(_tick, STEPS[_curStep][2]);
+  } else if(_loaderDone){
+    STEPS.forEach((s,i)=>_setStep(i,"done"));
+    setTimeout(()=>$("#loader").classList.remove("show"),300);
+  } else { _stepTimer=setTimeout(_tick,250); }
+}
+function showLoader(){
+  clearTimeout(_stepTimer); _loaderDone=false; _curStep=0;
+  $("#steps").innerHTML = STEPS.map(s=>`<li id="st-${s[0]}" class="step"><span class="ic"></span><span>${s[1]}</span></li>`).join("");
+  $("#loaderNote").textContent = "Pertama kali model dimuat sebentar. Mohon jangan upload ulang.";
+  $("#loader").classList.add("show"); _setStep(0,"active");
+  _stepTimer=setTimeout(_tick, STEPS[0][2]);
+}
+function finishLoader(){ _loaderDone=true; }
+function errorLoader(msg){
+  clearTimeout(_stepTimer); _loaderDone=true;
+  $("#loaderNote").innerHTML = `<span style="color:#c0392b">⚠️ ${msg}</span>
+    <button class="btn ghost" onclick="document.getElementById('loader').classList.remove('show')">Tutup</button>`;
 }
 
 initZoom();
