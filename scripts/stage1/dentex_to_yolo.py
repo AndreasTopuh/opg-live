@@ -87,6 +87,10 @@ def convert(args):
     if args.test_frac > 0:
         splits["test"] = test_ids
 
+    # fresh output: re-running must NOT accumulate stale files from a previous
+    # split (that caused val->train leakage and an inflated mAP on Colab).
+    for kind in ("images", "labels"):
+        shutil.rmtree(f"{args.out}/{kind}", ignore_errors=True)
     for sp in splits:
         os.makedirs(f"{args.out}/images/{sp}", exist_ok=True)
         os.makedirs(f"{args.out}/labels/{sp}", exist_ok=True)
