@@ -66,10 +66,10 @@
 
   /* stage + zoom */
   #stagewrap{position:relative}
-  #stage{position:relative;display:block;width:100%;min-height:320px;line-height:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0d0d0d;cursor:grab;touch-action:none}
+  #stage{position:relative;display:block;width:100%;min-height:320px;line-height:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0d0d0d;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
   #stage.grabbing{cursor:grabbing}
   #zoomwrap{position:relative;transform-origin:0 0;will-change:transform;line-height:0}
-  #stage img.base,#stage img.mask{width:100%;display:block}
+  #stage img.base,#stage img.mask{width:100%;display:block;-webkit-user-drag:none;user-drag:none;user-select:none;pointer-events:none}
   #stage img.mask{position:absolute;inset:0;pointer-events:none}
   #stage .ph{color:#aaa;padding:40px;line-height:1.5;text-align:center}
   .tbox{position:absolute;border:2px solid transparent;border-radius:3px;cursor:pointer;transition:.1s;background:transparent}
@@ -149,8 +149,8 @@
 <body>
 <div id="loader">
   <div class="loader-card">
-    <h3>🦷 Menganalisis OPG <span class="dots"><i></i><i></i><i></i></span></h3>
-    <p class="s">Pipeline Stage 1 → Stage 2 berjalan di server</p>
+    <h3>🦷 Analyzing OPG <span class="dots"><i></i><i></i><i></i></span></h3>
+    <p class="s">Pipeline Stage 1 → Stage 2 running on the server</p>
     <ul class="steps" id="steps"></ul>
     <p id="loaderNote"></p>
   </div>
@@ -161,13 +161,13 @@
   <aside class="sidebar">
     <div class="brand">🦷 OPG-Live</div>
     <div class="nav on"><span class="ic">▦</span> Dashboard</div>
-    <div class="nav"><span class="ic">⤓</span> Upload &amp; Analisis</div>
-    <div class="nav"><span class="ic">☻</span> Pasien</div>
-    <div class="nav"><span class="ic">↺</span> Riwayat</div>
-    <div class="nav"><span class="ic">▤</span> Laporan</div>
-    <div class="nav"><span class="ic">⚙</span> Pengaturan</div>
-    <div class="help"><b>Butuh bantuan?</b><br>Lihat panduan penggunaan ↗</div>
-    <button class="sbtoggle" onclick="toggleSidebar()">◁ Sembunyikan sidebar</button>
+    <div class="nav"><span class="ic">⤓</span> Upload &amp; Analyze</div>
+    <div class="nav"><span class="ic">☻</span> Patients</div>
+    <div class="nav"><span class="ic">↺</span> History</div>
+    <div class="nav"><span class="ic">▤</span> Reports</div>
+    <div class="nav"><span class="ic">⚙</span> Settings</div>
+    <div class="help"><b>Need help?</b><br>See the user guide ↗</div>
+    <button class="sbtoggle" onclick="toggleSidebar()">◁ Hide sidebar</button>
     <div class="ver">OPG-Live v2.0.0 · MVP</div>
   </aside>
 
@@ -175,7 +175,7 @@
   <div class="app">
     <header class="topbar">
       <div style="display:flex;align-items:center;gap:12px">
-        <button id="showSb" onclick="toggleSidebar()" title="Tampilkan sidebar">☰</button>
+        <button id="showSb" onclick="toggleSidebar()" title="Show sidebar">☰</button>
         <strong>Dashboard</strong>
       </div>
       <div style="display:flex;align-items:center;gap:14px">
@@ -191,9 +191,9 @@
           <h2>1 · Upload OPG <span class="sub">ⓘ</span></h2>
           <div class="drop" id="drop">
             <div class="cloud">⤒</div>
-            <div>Klik atau drag &amp; drop file OPG di sini</div>
+            <div>Click or drag &amp; drop an OPG file here</div>
             <div class="sub">Format: JPG, PNG</div>
-            <button class="btn" type="button">Pilih File</button>
+            <button class="btn" type="button">Choose File</button>
           </div>
           <input type="file" id="file" accept="image/*" style="display:none">
           <div id="filecard"></div>
@@ -201,15 +201,15 @@
         </section>
 
         <section class="card">
-          <h2>Temuan AI <span class="sub">(Ringkasan)</span></h2>
-          <div id="findings"><p class="sub">Upload OPG untuk mendeteksi lesi.</p></div>
+          <h2>AI Findings <span class="sub">(Summary)</span></h2>
+          <div id="findings"><p class="sub">Upload an OPG to detect lesions.</p></div>
         </section>
       </div>
 
       <!-- COLUMN 2 -->
       <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
         <section class="card">
-          <h2><span id="vtitle">2 · Hasil Segmentasi AI</span></h2>
+          <h2><span id="vtitle">2 · AI Segmentation Result</span></h2>
           <div class="toolbar" id="toolbar" style="display:none">
             <button data-mode="overview" onclick="setMode('overview')" class="on">Overview</button>
             <button data-mode="bbox" onclick="setMode('bbox')">BBox</button>
@@ -219,13 +219,13 @@
             <button data-mode="tooth" onclick="setMode('tooth')">Per tooth</button>
           </div>
           <div id="stagewrap">
-            <div id="stage"><p class="ph">Hasil segmentasi muncul di sini setelah upload.</p></div>
+            <div id="stage"><p class="ph">Segmentation result appears here after upload.</p></div>
             <div id="rmark" style="display:none">R</div>
             <div id="zoomctl">
               <button onclick="zoomBy(1.25)" title="Zoom in">＋</button>
               <button onclick="zoomBy(0.8)" title="Zoom out">－</button>
               <button onclick="resetZoom()" title="Reset">⟲</button>
-              <button onclick="toggleFull()" title="Fokus / Fullscreen (Esc keluar)">⛶</button>
+              <button onclick="toggleFull()" title="Focus / Fullscreen (Esc to exit)">⛶</button>
             </div>
           </div>
           <p class="sub" id="hint" style="margin:8px 0 0"></p>
@@ -235,26 +235,26 @@
             <span><i class="sw" style="background:#eab308"></i>Caries</span>
             <span><i class="sw" style="background:#ef4444"></i>Periapical</span>
             <span><i class="sw" style="background:#3b82f6"></i>Deep Caries</span>
-            <span><i class="sw" style="background:#cbd5c0"></i>Gigi sehat</span>
+            <span><i class="sw" style="background:#cbd5c0"></i>Healthy tooth</span>
           </div>
         </section>
 
         <section class="card">
-          <h2>3 · Ringkasan Analisis <button class="btn ghost" onclick="exportReport()">⤓ Export Laporan</button></h2>
+          <h2>3 · Analysis Summary <button class="btn ghost" onclick="exportReport()">⤓ Export Report</button></h2>
           <div class="stats" id="stats">
-            <div class="stat"><b>–</b><small>Total Gigi</small></div>
+            <div class="stat"><b>–</b><small>Total Teeth</small></div>
             <div class="stat"><b>–</b><small>Impacted</small></div>
             <div class="stat"><b>–</b><small>Caries</small></div>
             <div class="stat"><b>–</b><small>Periapical</small></div>
-            <div class="stat"><b>–</b><small>Gigi Sehat</small></div>
+            <div class="stat"><b>–</b><small>Healthy Teeth</small></div>
           </div>
         </section>
       </div>
 
       <!-- COLUMN 3: detail -->
       <section class="card" id="detail">
-        <h2>Detail Gigi <span id="dclose" class="sub" style="cursor:pointer;display:none" onclick="closeDetail()">✕</span></h2>
-        <div id="detailbody"><div class="empty">Klik gigi pada gambar atau penomoran untuk melihat detail segmentasi.</div></div>
+        <h2>Tooth Detail <span id="dclose" class="sub" style="cursor:pointer;display:none" onclick="closeDetail()">✕</span></h2>
+        <div id="detailbody"><div class="empty">Click a tooth on the image or the numbering to see segmentation detail.</div></div>
       </section>
     </div>
   </div>
@@ -279,7 +279,7 @@ async function upload(f){
   if(!f) return;
   _file = f;
   showLoader();
-  $("#status").textContent = "⏳ Menjalankan YOLOv8 + SAM…";
+  $("#status").textContent = "⏳ Running YOLOv8 + SAM…";
   const fd = new FormData(); fd.append("file", f);
   try{
     const r = await fetch(API+"/api/analyze",{method:"POST",body:fd});
@@ -287,7 +287,7 @@ async function upload(f){
     if(!r.ok||d.error||!d.teeth){ const m=d.error||d.detail||"HTTP "+r.status; errorLoader(m); $("#status").textContent="❌ "+m; return; }
     D = d;
     finishLoader();
-    $("#status").textContent = `✅ ${d.findings.length} lesi · ${d.teeth.length} gigi terdeteksi.`;
+    $("#status").textContent = `✅ ${d.findings.length} lesions · ${d.teeth.length} teeth detected.`;
     renderFileCard(); renderFindings(); renderStats(); resetView();
   }catch(e){ errorLoader(e+""); $("#status").textContent="❌ "+e; }
 }
@@ -315,9 +315,9 @@ function renderFindings(){
   }).join("");
   const healthy = (D.teeth||[]).filter(t=>!t.has_disease).length;
   $("#findings").innerHTML = rows +
-    `<div class="frow"><i class="dot" style="background:#cbd5c0"></i>Gigi Sehat<b>${healthy}</b></div>`;
+    `<div class="frow"><i class="dot" style="background:#cbd5c0"></i>Healthy Teeth<b>${healthy}</b></div>`;
 }
-// click a Temuan-AI class row -> open + auto-zoom the first tooth of that class
+// click an AI-Findings class row -> open + auto-zoom the first tooth of that class
 function jumpToClass(dis){
   const t = (D.teeth||[]).find(x=>x.has_disease && x.disease===dis);
   if(t) clickDisease(t.det_idx);
@@ -325,9 +325,9 @@ function jumpToClass(dis){
 
 function renderStats(){
   const total = (D.teeth||[]).length, healthy = D.teeth.filter(t=>!t.has_disease).length;
-  const s = [["Total Gigi",total],["Impacted",count("Impacted")],
+  const s = [["Total Teeth",total],["Impacted",count("Impacted")],
              ["Caries",count("Caries")+count("Deep Caries")],
-             ["Periapical",count("Periapical Lesion")],["Gigi Sehat",healthy]];
+             ["Periapical",count("Periapical Lesion")],["Healthy Teeth",healthy]];
   $("#stats").innerHTML = s.map(([l,v])=>`<div class="stat"><b>${v}</b><small>${l}</small></div>`).join("");
 }
 
@@ -361,18 +361,18 @@ function setMode(m){
   renderChart();
 
   if(m === "tooth"){
-    $("#vtitle").textContent = "2 · Per Tooth — klik gigi";
-    $("#hint").textContent = "Klik gigi → SAM mask + metrik. Scroll = zoom, klik-kanan + geser = pan.";
+    $("#vtitle").textContent = "2 · Per Tooth — click a tooth";
+    $("#hint").textContent = "Click a tooth → SAM mask + metrics. Scroll = zoom, drag = pan.";
     $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${D.views.raw}"><div id="masklayer"></div>${toothBoxes()}</div>`;
     _applyZoom(); return;   // keep current zoom/pan across mode switches
   }
   const v = D.views;
   const src = {overview:v.overview, bbox:v.bbox, mask:v.mask, hybrid:v.hybrid, hide:v.raw}[m];
-  const title = {overview:"2 · Hasil Segmentasi AI", bbox:"2 · BBox arm", mask:"2 · Mask arm",
-                 hybrid:"2 · Hybrid arm", hide:"2 · OPG asli"}[m];
+  const title = {overview:"2 · AI Segmentation Result", bbox:"2 · BBox arm", mask:"2 · Mask arm",
+                 hybrid:"2 · Hybrid arm", hide:"2 · Original OPG"}[m];
   $("#vtitle").textContent = title;
-  $("#hint").textContent = (m==="hide" ? "Overlay disembunyikan." : "Render seluruh lesi.") +
-    " Scroll = zoom, klik-kanan + geser = pan.";
+  $("#hint").textContent = (m==="hide" ? "Overlay hidden." : "Rendering all lesions.") +
+    " Scroll = zoom, drag = pan.";
   $("#stage").innerHTML = `<div id="zoomwrap"><img class="base" src="${src}"></div>`;
   _applyZoom();   // keep current zoom/pan across mode switches
 }
@@ -415,6 +415,7 @@ function zoomToBox(box){
 function initZoom(){
   const st=$("#stage");
   st.addEventListener("contextmenu",e=>e.preventDefault());   // allow right-drag pan
+  st.addEventListener("dragstart",e=>e.preventDefault());     // block native image ghost-drag (the "grab" + blue selection)
   st.addEventListener("wheel",e=>{
     if(!$("#zoomwrap"))return; e.preventDefault();
     const r=st.getBoundingClientRect(); _zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.15:0.87);
@@ -425,6 +426,7 @@ function initZoom(){
   let pinch = 0, moved = false, btn = 0;
   st.addEventListener("pointerdown",e=>{
     if(!$("#zoomwrap"))return;
+    if(e.pointerType==='mouse' && e.button===1) return;   // ignore middle-click only; left & right both pan
     pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); btn=e.button;
     if(pts.size===1) moved=false;
     if(pts.size===2){ const [a,b]=[...pts.values()]; pinch=Math.hypot(a.x-b.x,a.y-b.y); }
@@ -463,7 +465,7 @@ function initZoom(){
 /* ---------- tooth detail ---------- */
 function closeDetail(){
   $("#dclose").style.display="none";
-  $("#detailbody").innerHTML = `<div class="empty">Klik gigi pada gambar atau penomoran untuk melihat detail segmentasi.</div>`;
+  $("#detailbody").innerHTML = `<div class="empty">Click a tooth on the image or the numbering to see segmentation detail.</div>`;
   document.querySelectorAll(".tbox,.tnum").forEach(b=>b.classList.remove("sel"));
 }
 function clickHealthy(fdi){
@@ -471,15 +473,15 @@ function clickHealthy(fdi){
   selectChips(fdi, null);
   $("#dclose").style.display="inline";
   $("#detailbody").innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-    <b>Gigi ${fdi} (FDI ${fdi})</b><span class="badge" style="background:#e8f5e9;color:#16a34a">Sehat</span></div>
-    <p class="sub">Tidak ada patologi terdeteksi pada gigi ini — tidak ada mask.</p>`;
+    <b>Tooth ${fdi} (FDI ${fdi})</b><span class="badge" style="background:#e8f5e9;color:#16a34a">Healthy</span></div>
+    <p class="sub">No pathology detected on this tooth — no mask.</p>`;
 }
 async function clickDisease(detIdx){
   if(_suppressClick) return;
   if(MODE!=="tooth") setMode("tooth");
   document.querySelectorAll(".tbox").forEach(b=>b.classList.toggle("sel", b.dataset.det==detIdx));
   $("#dclose").style.display="inline";
-  $("#detailbody").innerHTML = `<p class="sub">Segmentasi SAM berjalan…</p>`;
+  $("#detailbody").innerHTML = `<p class="sub">Running SAM segmentation…</p>`;
   try{
     const r = await fetch(API+"/api/segment",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({id:D.id, idx:detIdx})});
@@ -489,7 +491,7 @@ async function clickDisease(detIdx){
     const ml=$("#masklayer"); if(ml) ml.innerHTML = `<img class="mask" src="${d.overlay}">`;
     renderDetail(d);
     zoomToBox(d.box);   // auto-zoom the canvas to this lesion
-  }catch(e){ $("#detailbody").innerHTML=`<p class="sub">⚠️ ${e} — server masih loading? coba ulang.</p>`; }
+  }catch(e){ $("#detailbody").innerHTML=`<p class="sub">⚠️ ${e} — server still loading? try again.</p>`; }
 }
 function selectChips(fdi, detIdx){
   document.querySelectorAll(".tnum").forEach(b=>b.classList.toggle("sel", b.dataset.fdi==fdi));
@@ -497,13 +499,13 @@ function selectChips(fdi, detIdx){
 }
 
 let _detTab = "overview", _det = null;
-function confLabel(c){ return c>=0.7?"Tinggi":c>=0.4?"Sedang":"Rendah"; }
+function confLabel(c){ return c>=0.7?"High":c>=0.4?"Medium":"Low"; }
 function renderDetail(d){
   _det = d;
   const col = BORDER[d.disease]||"#22c55e";
   $("#detailbody").innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-      <b>Gigi ${d.fdi||"?"} (FDI ${d.fdi||"?"})</b>
+      <b>Tooth ${d.fdi||"?"} (FDI ${d.fdi||"?"})</b>
       <span class="badge" style="background:${col}22;color:${col}">${d.disease}</span>
     </div>
     <div class="mgrid">
@@ -515,8 +517,8 @@ function renderDetail(d){
     <div class="tabs" id="tabs">
       <div class="tab" data-t="overview" onclick="detTab('overview')">Overview</div>
       <div class="tab" data-t="ai" onclick="detTab('ai')">AI Explanation</div>
-      <div class="tab" data-t="rec" onclick="detTab('rec')">Rekomendasi</div>
-      <div class="tab" data-t="ref" onclick="detTab('ref')">Referensi</div>
+      <div class="tab" data-t="rec" onclick="detTab('rec')">Recommendation</div>
+      <div class="tab" data-t="ref" onclick="detTab('ref')">References</div>
     </div>
     <div class="tabbody" id="tabbody"></div>`;
   detTab(_detTab);
@@ -525,16 +527,16 @@ function detTab(t){
   _detTab = t;
   document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on", x.dataset.t===t));
   const d = _det, col = BORDER[d.disease]||"#22c55e";
-  const mock = `<span class="mock">MOCKUP · LLM belum aktif</span>`;
+  const mock = `<span class="mock">MOCKUP · LLM not active yet</span>`;
   const cards = `<div class="scards">
-    <div class="sc"><small>● Status</small><b style="color:${col}">${d.disease}</b><span class="sct">terdeteksi</span></div>
+    <div class="sc"><small>● Status</small><b style="color:${col}">${d.disease}</b><span class="sct">detected</span></div>
     <div class="sc"><small>◆ Confidence</small><b>${Math.round(d.conf*100)}%</b><span class="sct">${confLabel(d.conf)}</span></div>
     <div class="sc"><small>▲ Severity</small><b>—</b><span class="sct">mockup</span></div>
   </div>`;
-  const temuan = `<h4>Temuan Radiografis</h4><p>Metrik di atas (FDI, detector confidence, luas mask, SAM score) berasal dari pipeline <b>nyata</b> Stage 1 (YOLOv8) + Stage 2 (SAM + adapter) — bukan mockup.</p>`;
-  const ai  = `<h4>Interpretasi AI (LLM + RAG) ${mock}</h4><p>Penjelasan tekstual GPT-4o + RAG akan tampil di sini setelah Stage 3 diaktifkan.</p>`;
-  const rec = `<h4>Rekomendasi Singkat ${mock}</h4><p>Saran tindak lanjut klinis (mis. pemeriksaan bitewing, restorasi) akan dihasilkan oleh Stage 3.</p>`;
-  const ref = `<h4>Sumber Referensi (RAG) ${mock}</h4><ol><li>ADA Caries Classification System</li><li>ICCMS / ICDAS Guidelines</li><li>AAE Endodontic Diagnosis</li></ol>`;
+  const temuan = `<h4>Radiographic Findings</h4><p>The metrics above (FDI, detector confidence, mask area, SAM score) come from the <b>real</b> Stage 1 (YOLOv8) + Stage 2 (SAM + adapter) pipeline — not a mockup.</p>`;
+  const ai  = `<h4>AI Interpretation (LLM + RAG) ${mock}</h4><p>The GPT-4o + RAG textual explanation will appear here once Stage 3 is enabled.</p>`;
+  const rec = `<h4>Brief Recommendation ${mock}</h4><p>Clinical follow-up suggestions (e.g. bitewing examination, restoration) will be generated by Stage 3.</p>`;
+  const ref = `<h4>Reference Sources (RAG) ${mock}</h4><ol><li>ADA Caries Classification System</li><li>ICCMS / ICDAS Guidelines</li><li>AAE Endodontic Diagnosis</li></ol>`;
   const body = {
     overview: cards + temuan + ai + rec + ref,
     ai, rec, ref,
@@ -545,17 +547,17 @@ function detTab(t){
 function toggleSidebar(){ document.querySelector(".layout").classList.toggle("collapsed"); }
 
 function exportReport(){
-  if(!D){ alert("Belum ada hasil analisis."); return; }
-  alert("Export laporan: fitur mockup (Stage 3/laporan PDF belum diaktifkan).");
+  if(!D){ alert("No analysis result yet."); return; }
+  alert("Export report: mockup feature (Stage 3 / PDF report not enabled yet).");
 }
 
-/* ---------- loader (cepat untuk SageMaker) ---------- */
+/* ---------- loader (fast, for SageMaker) ---------- */
 const STEPS = [
-  ["read","Membaca citra panoramik",250],
-  ["det","Deteksi lesi · YOLOv8",700],
-  ["enum","Penomoran gigi (FDI) · YOLOv8",400],
-  ["seg","Segmentasi mask · SAM + adapter",800],
-  ["compose","Menyusun overview",300],
+  ["read","Reading panoramic image",250],
+  ["det","Lesion detection · YOLOv8",700],
+  ["enum","Tooth numbering (FDI) · YOLOv8",400],
+  ["seg","Mask segmentation · SAM + adapter",800],
+  ["compose","Composing overview",300],
 ];
 let _stepTimer=null,_loaderDone=false,_curStep=0;
 function _setStep(i,s){ const el=document.getElementById("st-"+STEPS[i][0]); if(el) el.className="step "+s; }
@@ -571,7 +573,7 @@ function _tick(){
 function showLoader(){
   clearTimeout(_stepTimer); _loaderDone=false; _curStep=0;
   $("#steps").innerHTML = STEPS.map(s=>`<li id="st-${s[0]}" class="step"><span class="ic"></span><span>${s[1]}</span></li>`).join("");
-  $("#loaderNote").textContent = "Pertama kali model dimuat sebentar. Mohon jangan upload ulang.";
+  $("#loaderNote").textContent = "First load takes a moment. Please don't re-upload.";
   $("#loader").classList.add("show"); _setStep(0,"active");
   _stepTimer=setTimeout(_tick, STEPS[0][2]);
 }
@@ -579,7 +581,7 @@ function finishLoader(){ _loaderDone=true; }
 function errorLoader(msg){
   clearTimeout(_stepTimer); _loaderDone=true;
   $("#loaderNote").innerHTML = `<span style="color:#c0392b">⚠️ ${msg}</span>
-    <button class="btn ghost" onclick="document.getElementById('loader').classList.remove('show')">Tutup</button>`;
+    <button class="btn ghost" onclick="document.getElementById('loader').classList.remove('show')">Close</button>`;
 }
 
 initZoom();
